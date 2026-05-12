@@ -1,0 +1,19 @@
+{
+  "shortcuts": [
+    {
+      "key": "C",
+      "useMeh": true,
+      "applicationPath": "C:\\Users\\chris\\AppData\\Local\\Programs\\Microsoft VS Code\\code.exe"
+    },
+    {
+      "key": "V",
+      "useMeh": true,
+      "applicationPath": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\devenv.exe"
+    },  
+    {
+      "key": "X",
+      "useMeh": true,
+      "applicationPath": "C:\\Windows\\explorer.exe"
+    }
+  ]
+}

@@ -322,7 +322,7 @@ public class TrayApplicationContext : ApplicationContext
             Height = controlHeight,
             MaxLength = 1,
             Text = existingShortcut?.Key ?? "",
-            Enabled = !isEdit,
+            Enabled = true, // Allow editing the key
             Font = new Font("Segoe UI", 7.25F, FontStyle.Regular)
         };
         dialog.Controls.Add(keyLabel);
@@ -506,7 +506,8 @@ public class TrayApplicationContext : ApplicationContext
 
             if (isEdit && existingShortcut != null)
             {
-                // Update existing shortcut
+                // Update existing shortcut (including key if changed)
+                existingShortcut.Key = key;
                 existingShortcut.ApplicationPath = path;
                 existingShortcut.WorkingDirectory = workDirTextBox.Text.Trim();
                 existingShortcut.UseMeh = mehCheckBox.Checked;

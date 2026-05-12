@@ -20,6 +20,7 @@ public class KeyboardHookService : IDisposable
     private bool _altPressed;
     private bool _shiftPressed;
     private bool _winPressed;
+    private CyclePopup? _activePopup;
 
     public KeyboardHookService()
     {
@@ -107,6 +108,23 @@ public class KeyboardHookService : IDisposable
             {
                 _winPressed = false;
             }
+
+            // Check if Meh/Hyper combination is released
+            bool mehReleased = !(_ctrlPressed && _altPressed && _shiftPressed);
+            if (mehReleased && _activePopup != null)
+            {
+                // Dismiss popup when modifiers are released
+                var popup = _activePopup;
+                _activePopup = null;
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        popup.DismissPopup();
+                    }
+                    catch { }
+                });
+            }
         }
 
         return CallNextHookEx(_hookId, nCode, wParam, lParam);
@@ -119,11 +137,10 @@ public class KeyboardHookService : IDisposable
             var appPath = mapping.ApplicationPath;
             var processName = Path.GetFileNameWithoutExtension(appPath);
 
-            var runningProcesses = Process.GetProcessesByName(processName)
-                .Where(p => p.MainWindowHandle != IntPtr.Zero)
-                .ToList();
+            // Use enhanced window enumeration to find ALL windows
+            var windows = WindowEnumerator.GetProcessWindows(processName);
 
-            if (runningProcesses.Count == 0)
+            if (windows.Count == 0)
             {
                 // No instances running, launch the application
                 var startInfo = new ProcessStartInfo
@@ -140,10 +157,10 @@ public class KeyboardHookService : IDisposable
                 Process.Start(startInfo);
                 _currentInstanceIndex[key] = 0;
             }
-            else if (runningProcesses.Count == 1)
+            else if (windows.Count == 1)
             {
                 // Only one instance, just bring it to front
-                BringWindowToFront(runningProcesses[0].MainWindowHandle);
+                BringWindowToFront(windows[0].WindowHandle);
                 _currentInstanceIndex[key] = 0;
             }
             else
@@ -160,13 +177,13 @@ public class KeyboardHookService : IDisposable
                     currentIndex--;
                     if (currentIndex < 0)
                     {
-                        currentIndex = runningProcesses.Count - 1;
+                        currentIndex = windows.Count - 1;
                     }
                 }
                 else
                 {
                     currentIndex++;
-                    if (currentIndex >= runningProcesses.Count)
+                    if (currentIndex >= windows.Count)
                     {
                         currentIndex = 0;
                     }
@@ -174,25 +191,87 @@ public class KeyboardHookService : IDisposable
 
                 _currentInstanceIndex[key] = currentIndex;
 
-                var targetProcess = runningProcesses[currentIndex];
-                BringWindowToFront(targetProcess.MainWindowHandle);
+                var targetWindow = windows[currentIndex];
+                BringWindowToFront(targetWindow.WindowHandle);
+
+                // Show popup with window list (non-blocking, async)
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        var windowTitles = windows.Select(w => w.Title).ToList();
+
+                        // Dismiss existing popup if any
+                        if (_activePopup != null)
+                        {
+                            _activePopup.UpdateSelection(windowTitles, currentIndex);
+                        }
+                        else
+                        {
+                            // Create and show popup on UI thread
+                            _activePopup = new CyclePopup(windowTitles, currentIndex);
+                            _activePopup.ShowPopup();
+                        }
+                    }
+                    catch
+                    {
+                        // Silently ignore popup errors - don't interrupt cycling
+                    }
+                });
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error handling shortcut: {ex.Message}", "ShortCutTool Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show($"Error handling shortcut: {ex.Message}\n\n{ex.StackTrace}", "ShortCutTool Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
     private void BringWindowToFront(IntPtr windowHandle)
     {
+        // Restore if minimized
         if (IsIconic(windowHandle))
         {
             ShowWindow(windowHandle, SW_RESTORE);
         }
 
-        SetForegroundWindow(windowHandle);
+        // Get current foreground window
+        IntPtr currentForeground = GetForegroundWindow();
+
+        // Get the thread IDs
+        uint currentThreadId = GetCurrentThreadId();
+        uint foregroundThreadId = GetWindowThreadProcessId(currentForeground, IntPtr.Zero);
+        uint targetThreadId = GetWindowThreadProcessId(windowHandle, IntPtr.Zero);
+
+        // Attach to the foreground thread to allow setting foreground window
+        if (foregroundThreadId != currentThreadId)
+        {
+            AttachThreadInput(currentThreadId, foregroundThreadId, true);
+            AttachThreadInput(currentThreadId, targetThreadId, true);
+        }
+
+        // Bring window to front using multiple methods for reliability
         BringWindowToTop(windowHandle);
+        ShowWindow(windowHandle, SW_SHOW);
+        SetForegroundWindow(windowHandle);
+        SetFocus(windowHandle);
+
+        // Flash the window to get user attention if needed
+        var flashInfo = new FLASHWINFO
+        {
+            cbSize = (uint)Marshal.SizeOf<FLASHWINFO>(),
+            hwnd = windowHandle,
+            dwFlags = FLASHW_TRAY | FLASHW_TIMERNOFG,
+            uCount = 3,
+            dwTimeout = 0
+        };
+        FlashWindowEx(ref flashInfo);
+
+        // Detach thread input
+        if (foregroundThreadId != currentThreadId)
+        {
+            AttachThreadInput(currentThreadId, foregroundThreadId, false);
+            AttachThreadInput(currentThreadId, targetThreadId, false);
+        }
     }
 
     public void Dispose()
@@ -227,7 +306,38 @@ public class KeyboardHookService : IDisposable
     [DllImport("user32.dll")]
     private static extern bool IsIconic(IntPtr hWnd);
 
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr ProcessId);
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
+
+    [DllImport("user32.dll")]
+    private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetFocus(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool FlashWindowEx(ref FLASHWINFO pfwi);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FLASHWINFO
+    {
+        public uint cbSize;
+        public IntPtr hwnd;
+        public uint dwFlags;
+        public uint uCount;
+        public uint dwTimeout;
+    }
+
     private const int SW_RESTORE = 9;
+    private const int SW_SHOW = 5;
+    private const uint FLASHW_TRAY = 0x00000002;
+    private const uint FLASHW_TIMERNOFG = 0x0000000C;
 
     private enum Keys
     {

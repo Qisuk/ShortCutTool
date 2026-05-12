@@ -3,17 +3,23 @@
     {
       "key": "C",
       "useMeh": true,
-      "applicationPath": "C:\\Users\\chris\\AppData\\Local\\Programs\\Microsoft VS Code\\code.exe"
+      "useHyperForReverse": true,
+      "applicationPath": "C:\\Program Files\\YourApp1\\app.exe",
+      "workingDirectory": ""
     },
     {
       "key": "V",
       "useMeh": true,
-      "applicationPath": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\devenv.exe"
-    },  
+      "useHyperForReverse": true,
+      "applicationPath": "C:\\Program Files\\YourApp2\\app.exe",
+      "workingDirectory": ""
+    },
     {
-      "key": "X",
+      "key": "E",
       "useMeh": true,
-      "applicationPath": "C:\\Windows\\explorer.exe"
+      "useHyperForReverse": true,
+      "applicationPath": "C:\\Windows\\explorer.exe",
+      "workingDirectory": ""
     }
   ]
 }

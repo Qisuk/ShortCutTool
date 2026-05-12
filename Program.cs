@@ -49,6 +49,16 @@ if (config == null || config.Shortcuts.Count == 0)
     return;
 }
 
+// Expand environment variables in application paths
+foreach (var shortcut in config.Shortcuts)
+{
+    shortcut.ApplicationPath = Environment.ExpandEnvironmentVariables(shortcut.ApplicationPath);
+    if (!string.IsNullOrEmpty(shortcut.WorkingDirectory))
+    {
+        shortcut.WorkingDirectory = Environment.ExpandEnvironmentVariables(shortcut.WorkingDirectory);
+    }
+}
+
 using var hookService = new KeyboardHookService();
 
 foreach (var shortcut in config.Shortcuts)

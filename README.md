@@ -1,147 +1,170 @@
-# ShortCutTool - Auto-Start Application
+# ShortCutTool
 
-This application runs as a background application in your system tray and will start automatically when you log in to Windows.
+A Windows keyboard shortcut manager that uses **Meh** (Ctrl+Alt+Shift) and **Hyper** (Ctrl+Alt+Shift+Win) key combinations to launch and cycle through application windows.
 
-## Why Not a Windows Service?
+## Features
 
-Windows Services run in Session 0 (isolated from user desktop) and cannot install keyboard hooks or interact with the desktop. Therefore, this application runs as a **user-level auto-start application** instead.
+✨ **Launch or cycle applications** with a single keyboard shortcut  
+🔄 **Cycle through multiple windows** of the same application (e.g., multiple VS Code windows)  
+⬅️ **Reverse cycling** using Hyper key combination  
+📋 **Visual popup** shows window list while cycling (appears near system tray)  
+🎯 **Stays visible** until you release the modifier keys  
+⚡ **Lightweight** - runs in system tray with minimal resource usage  
+🚀 **Auto-start** support via Windows Startup folder or Task Scheduler
 
-## Installation & Auto-Start Setup
+## What are Meh and Hyper Keys?
 
-### Option 1: Using Windows Startup Folder (Recommended)
+- **Meh** = `Ctrl + Alt + Shift` (forward cycling)
+- **Hyper** = `Ctrl + Alt + Shift + Win` (reverse cycling)
 
-1. Build and publish the application:
+These combinations are rarely used by other applications, making them perfect for global shortcuts!
+
+## Quick Start
+
+1. **Download** the latest release or build from source:
    ```powershell
    dotnet publish -c Release -o ./publish
    ```
 
-2. Create a shortcut to the executable:
-   - Right-click on `ShortCutTool.exe` in the publish folder
-   - Select "Create shortcut"
+2. **Configure** your shortcuts by editing `shortcuts.json` (see examples below)
 
-3. Copy the shortcut to your Startup folder:
-   ```powershell
-   # Open the Startup folder
-   explorer shell:startup
-   ```
-   Then paste the shortcut into this folder
+3. **Run** `ShortCutTool.exe` - it will appear in your system tray
 
-4. The application will now start automatically when you log in
+4. **Use shortcuts**:
+   - Press `Meh + Key` to launch or bring forward an application
+   - If multiple windows exist, press again to cycle forward
+   - Use `Hyper + Key` to cycle backward through windows
 
-### Option 2: Using Task Scheduler (More Control)
+## Default Configuration
 
-1. Open Task Scheduler (Win+R, type `taskschd.msc`)
+The included `shortcuts.json` has these defaults (customize to your needs):
 
-2. Click "Create Task" (not "Create Basic Task")
-
-3. **General Tab**:
-   - Name: ShortCutTool
-   - Description: Keyboard shortcut manager
-   - Run whether user is logged on or not: **NO** (must run only when logged on)
-   - Run with highest privileges: Check this if you need to launch apps with admin rights
-
-4. **Triggers Tab**:
-   - New Trigger
-   - Begin the task: "At log on"
-   - Specific user: Your username
-   - Click OK
-
-5. **Actions Tab**:
-   - New Action
-   - Action: Start a program
-   - Program/script: Browse to `ShortCutTool.exe`
-   - Start in: The folder containing the executable
-   - Click OK
-
-6. **Conditions Tab**:
-   - Uncheck "Start the task only if the computer is on AC power"
-
-7. **Settings Tab**:
-   - Check "Allow task to be run on demand"
-   - If the task is already running: "Do not start a new instance"
-
-8. Click OK to save
-
-## Running the Application
-
-### Start Manually
-Just double-click `ShortCutTool.exe`. It will run in the system tray.
-
-### Stop the Application
-- Right-click the system tray icon and select "Exit"
-- Or use Task Manager to end the process
+| Key | Application | Shortcut |
+|-----|-------------|----------|
+| N | Notepad | Meh+N |
+| X | Excel | Meh+X |
+| C | VS Code | Meh+C |
+| V | Visual Studio | Meh+V |
+| G | Chrome | Meh+G |
+| E | Edge | Meh+E |
+| Q | SQL Server Management Studio | Meh+Q |
+| O | Outlook | Meh+O |
+| T | Teams | Meh+T |
 
 ## Configuration
 
-The application reads `shortcuts.json` from the same directory as the executable.
-
-To modify shortcuts:
-1. Exit the application (right-click tray icon → Exit)
-2. Edit `shortcuts.json`
-3. Start the application again
-
-## System Tray Icon
-
-The application runs in the system tray (notification area):
-- **Double-click** the icon to see status information
-- **Right-click** the icon for options (Exit)
-- The tooltip shows how many shortcuts are active
-
-## Troubleshooting
-
-### Application doesn't start automatically
-- **Startup Folder Method**: Check that the shortcut is in `shell:startup`
-- **Task Scheduler Method**: Open Task Scheduler and verify the task exists and is enabled
-- Make sure the path in the shortcut/task points to the correct location
-
-### Access Denied or Permission Issues
-- The application must run in your user session (not as a service)
-- If launching admin apps, run the ShortCutTool with "Run as administrator"
-- Or configure the Task Scheduler task to "Run with highest privileges"
-
-### Shortcuts not working
-- Make sure the application is running (check system tray)
-- Verify `shortcuts.json` is valid JSON
-- Check that application paths in the config are correct
-
-### Can't see tray icon
-- Click the up arrow (^) in the system tray to show hidden icons
-- Right-click taskbar → Taskbar settings → Other system tray icons → Enable ShortCutTool
-
-## Uninstall
-
-1. **Remove from Startup Folder**:
-   ```powershell
-   explorer shell:startup
-   ```
-   Delete the ShortCutTool shortcut
-
-2. **Or Remove from Task Scheduler**:
-   - Open Task Scheduler
-   - Find "ShortCutTool" task
-   - Right-click → Delete
-
-3. Delete the application files
-
-## Example Configuration
+Edit `shortcuts.json` to customize your shortcuts:
 
 ```json
 {
-  "Shortcuts": [
+  "shortcuts": [
     {
-      "Key": "C",
-      "UseMeh": true,
-      "ApplicationPath": "C:\\Users\\YourUsername\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
-    },
-    {
-      "Key": "V",
-      "UseMeh": true,
-      "ApplicationPath": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\devenv.exe"
+      "key": "C",
+      "useMeh": true,
+      "useHyperForReverse": true,
+      "applicationPath": "C:\\Users\\%USERNAME%\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
+      "workingDirectory": ""
     }
   ]
 }
 ```
 
-Press **Ctrl+Alt+Shift+C** to launch or switch to VS Code  
-Press **Ctrl+Alt+Shift+V** to launch or switch to Visual Studio
+### Configuration Options
+
+- **key**: The letter key to press (with Meh/Hyper)
+- **useMeh**: Enable Meh (Ctrl+Alt+Shift) combination
+- **useHyperForReverse**: Enable Hyper (Ctrl+Alt+Shift+Win) for reverse cycling
+- **applicationPath**: Full path to the executable (supports environment variables like `%USERNAME%`)
+- **workingDirectory**: Optional starting directory for the application
+
+## Installation & Auto-Start
+
+### Option 1: Startup Folder (Easiest)
+
+1. Build/publish the application
+2. Create a shortcut to `ShortCutTool.exe`
+3. Open Windows Startup folder:
+   ```powershell
+   explorer shell:startup
+   ```
+4. Paste the shortcut into the Startup folder
+
+### Option 2: Task Scheduler (More Control)
+
+1. Open Task Scheduler (`Win+R` → `taskschd.msc`)
+2. Create Task (not Basic Task):
+   - **General**: Name it "ShortCutTool", run only when logged on
+   - **Triggers**: At log on for your user
+   - **Actions**: Start program → browse to `ShortCutTool.exe`
+   - **Conditions**: Uncheck "only on AC power"
+   - **Settings**: Don't start new instance if already running
+
+## Usage Examples
+
+### Single Window Application
+Press `Meh+N` → Notepad launches or comes to foreground
+
+### Multiple Windows (e.g., VS Code)
+1. Press `Meh+C` → First VS Code window comes forward
+2. Press `Meh+C` again → Cycles to second VS Code window
+3. Press `Meh+C` again → Cycles to third window (or wraps to first)
+4. Press `Hyper+C` → Cycles backward through windows
+
+### Visual Feedback
+While holding the Meh/Hyper keys and cycling, a popup appears near your system tray showing:
+- List of all windows
+- Current selected window (highlighted)
+- Popup disappears when you release the keys
+
+## Troubleshooting
+
+### Shortcuts not working
+- Verify the app is running (check system tray)
+- Ensure `shortcuts.json` is valid JSON
+- Check that application paths exist
+- Try running as administrator if launching elevated apps
+
+### Can't see tray icon
+- Click the up arrow (^) in system tray
+- Or: Taskbar settings → Other system tray icons → Enable ShortCutTool
+
+### Application doesn't auto-start
+- Check the shortcut exists in `shell:startup` folder
+- Or verify the Task Scheduler task is enabled
+
+### Cycling not working
+- Ensure the application process is actually running multiple windows
+- Check that `useHyperForReverse` is set to `true` in config
+
+## Why Not a Windows Service?
+
+Windows Services run in Session 0 (isolated from the user desktop) and cannot:
+- Install keyboard hooks
+- Interact with the desktop
+- Launch GUI applications in the user session
+
+This app runs as a **user-level tray application** to overcome these limitations.
+
+## Uninstall
+
+1. Exit the application (right-click tray icon → Exit)
+2. Remove from Startup folder or delete Task Scheduler task
+3. Delete the application files
+
+## System Requirements
+
+- Windows 10 or later
+- .NET 10 Runtime
+
+## Contributing
+
+Contributions welcome! Please open an issue or PR on GitHub.
+
+## License
+
+MIT License - see LICENSE file for details
+
+---
+
+**Tip**: Start with a few shortcuts, get comfortable with Meh key combinations, then add more as needed!
 

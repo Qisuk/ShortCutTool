@@ -106,11 +106,13 @@ You now have: `https://github.com/YOUR_USERNAME/winget-pkgs`
 
 #### 3.2 Clone Your Fork
 
+⚠️ **IMPORTANT:** Clone `winget-pkgs` OUTSIDE your ShortCutTool project folder to avoid build errors!
+
 ```powershell
-# Navigate to a working directory (NOT inside ShortCutTool)
+# Navigate to a working directory (NOT inside ShortCutTool!)
 cd C:\Users\chris\source\repos\
 
-# Clone your fork
+# Clone your fork (as a sibling to ShortCutTool, not inside it)
 git clone https://github.com/YOUR_USERNAME/winget-pkgs.git
 cd winget-pkgs
 ```

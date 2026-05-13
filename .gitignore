@@ -367,3 +367,7 @@ release/
 
 # Publish output
 publish/
+
+# Winget package repository (should be cloned outside project)
+winget-pkgs/
+

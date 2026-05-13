@@ -94,7 +94,8 @@ WINGET_HOWTO.md (overview)
 - Currently: `Qisuk.ShortCutTool`
 
 ## Resources
-📚 [Full Guide](WINGET_SUBMISSION.md)
+📚 [Complete Guide with Folder Structure](WINGET_SUBMISSION_COMPLETE.md) ← **START HERE!**
+🎨 [Visual Quick Reference](WINGET_SUBMISSION_VISUAL.md)
 📖 [Overview](WINGET_HOWTO.md)
 🔗 [Winget Docs](https://learn.microsoft.com/windows/package-manager/)
 

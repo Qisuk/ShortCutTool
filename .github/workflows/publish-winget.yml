@@ -1,0 +1,71 @@
+name: Publish to Winget
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-to-winget:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout ShortCutTool repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Get version from release
+        id: get_version
+        shell: pwsh
+        run: |
+          $version = "${{ github.event.release.tag_name }}" -replace '^v', ''
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          echo "Version: $version"
+
+      - name: Build and publish release
+        shell: pwsh
+        run: |
+          $version = "${{ steps.get_version.outputs.VERSION }}"
+          dotnet publish ShortCutTool.csproj -c Release -o "release/publish" --self-contained false -r win-x64
+
+          # Create ZIP
+          $zipPath = "release/ShortCutTool-v$version.zip"
+          Compress-Archive -Path "release/publish/*" -DestinationPath $zipPath -Force
+
+          # Calculate SHA256
+          $hash = (Get-FileHash $zipPath -Algorithm SHA256).Hash
+          echo "PACKAGE_HASH=$hash" >> $env:GITHUB_OUTPUT
+          echo "ZIP_PATH=$zipPath" >> $env:GITHUB_OUTPUT
+          echo "Package hash: $hash"
+        id: build
+
+      - name: Update manifest files with SHA256
+        shell: pwsh
+        run: |
+          $hash = "${{ steps.build.outputs.PACKAGE_HASH }}"
+          $version = "${{ steps.get_version.outputs.VERSION }}"
+          $downloadUrl = "https://github.com/${{ github.repository }}/releases/download/v$version/ShortCutTool-v$version.zip"
+
+          # Update installer manifest
+          $installerPath = ".winget/Qisuk.ShortCutTool.installer.yaml"
+          (Get-Content $installerPath) -replace 'INSERT_SHA256_HERE', $hash -replace 'INSERT_DOWNLOAD_URL_HERE', $downloadUrl | Set-Content $installerPath
+
+          # Update version in main manifest
+          $mainPath = ".winget/Qisuk.ShortCutTool.yaml"
+          (Get-Content $mainPath) -replace 'PackageVersion: .*', "PackageVersion: $version" | Set-Content $mainPath
+
+          # Update version in locale manifest
+          $localePath = ".winget/Qisuk.ShortCutTool.locale.en-US.yaml"
+          (Get-Content $localePath) -replace 'PackageVersion: .*', "PackageVersion: $version" | Set-Content $localePath
+
+      - name: Submit to Winget
+        uses: vedantmgoyal2009/winget-releaser@v2
+        with:
+          identifier: Qisuk.ShortCutTool
+          version: ${{ steps.get_version.outputs.VERSION }}
+          installers-regex: '\.zip$'
+          token: ${{ secrets.WINGET_TOKEN }}
+          fork-user: ${{ github.repository_owner }}

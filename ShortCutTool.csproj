@@ -20,13 +20,22 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/Qisuk/ShortCutTool</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- Application Icon -->
+    <ApplicationIcon>Assets\Icons\app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <None Update="shortcuts.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="Assets\Icons\app.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <None Include=".winget\Qisuk.ShortCutTool.installer.yaml" />
+    <None Include=".winget\Qisuk.ShortCutTool.locale.en-US.yaml" />
+    <None Include=".winget\Qisuk.ShortCutTool.yaml" />
   </ItemGroup>
 
 </Project>

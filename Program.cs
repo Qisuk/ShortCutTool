@@ -37,7 +37,33 @@ if (!File.Exists(configFile))
 }
 
 var configJson = File.ReadAllText(configFile);
-var config = JsonSerializer.Deserialize<AppShortcutConfig>(configJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+AppShortcutConfig? config;
+
+try
+{
+    config = JsonSerializer.Deserialize<AppShortcutConfig>(configJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+}
+catch (JsonException ex)
+{
+    MessageBox.Show(
+        $"Invalid JSON configuration file:\n\n{ex.Message}",
+        "ShortCut Tool - Configuration Error",
+        MessageBoxButtons.OK,
+        MessageBoxIcon.Error);
+    return;
+}
+
+// Validate configuration
+var validationResult = ConfigValidator.ValidateConfig(config);
+if (!validationResult.IsValid)
+{
+    MessageBox.Show(
+        $"Configuration validation failed:\n\n{validationResult.ErrorMessage}\n\nPlease fix the configuration file and restart.",
+        "ShortCut Tool - Validation Error",
+        MessageBoxButtons.OK,
+        MessageBoxIcon.Error);
+    return;
+}
 
 if (config == null || config.Shortcuts.Count == 0)
 {
@@ -49,13 +75,13 @@ if (config == null || config.Shortcuts.Count == 0)
     return;
 }
 
-// Expand environment variables in application paths
+// Sanitize and expand environment variables in application paths
 foreach (var shortcut in config.Shortcuts)
 {
-    shortcut.ApplicationPath = Environment.ExpandEnvironmentVariables(shortcut.ApplicationPath);
+    shortcut.ApplicationPath = ConfigValidator.SanitizePath(shortcut.ApplicationPath);
     if (!string.IsNullOrEmpty(shortcut.WorkingDirectory))
     {
-        shortcut.WorkingDirectory = Environment.ExpandEnvironmentVariables(shortcut.WorkingDirectory);
+        shortcut.WorkingDirectory = ConfigValidator.SanitizePath(shortcut.WorkingDirectory);
     }
 }
 

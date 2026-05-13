@@ -21,16 +21,34 @@ These combinations are rarely used by other applications, making them perfect fo
 
 ## Quick Start
 
-1. **Download** the latest release or build from source:
-   ```powershell
-   dotnet publish -c Release -o ./publish
-   ```
+### Installation
 
-2. **Configure** your shortcuts by editing `shortcuts.json` (see examples below)
+#### Option 1: Winget (Coming Soon)
+```powershell
+winget install Qisuk.ShortCutTool
+```
+*Note: Pending approval in Windows Package Manager repository*
 
-3. **Run** `ShortCutTool.exe` - it will appear in your system tray
+#### Option 2: Download Release
+1. Download the latest release from [GitHub Releases](https://github.com/Qisuk/ShortCutTool/releases)
+2. Extract the ZIP file
+3. Run `ShortCutTool.exe`
 
-4. **Use shortcuts**:
+#### Option 3: Build from Source
+```powershell
+dotnet publish -c Release -o ./publish
+```
+
+### First Run
+
+1. **Run** `ShortCutTool.exe` - it will appear in your system tray
+
+2. **Configure shortcuts**:
+   - Right-click tray icon → "Show Shortcuts..."
+   - Click "Add Shortcut" to add applications
+   - Or edit `shortcuts.json` manually
+
+3. **Use shortcuts**:
    - Press `Meh + Key` to launch or bring forward an application
    - If multiple windows exist, press again to cycle forward
    - Use `Hyper + Key` to cycle backward through windows

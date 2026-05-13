@@ -16,13 +16,50 @@ public class TrayApplicationContext : ApplicationContext
 
         _trayIcon = new NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = LoadApplicationIcon(),
             ContextMenuStrip = CreateContextMenu(),
             Visible = true,
             Text = $"ShortCut Tool - {_shortcuts.Count} shortcuts active"
         };
 
         _trayIcon.DoubleClick += OnTrayIconDoubleClick;
+    }
+
+    private Icon LoadApplicationIcon()
+    {
+        // Try to load the custom icon from the application
+        try
+        {
+            // The icon is embedded in the .exe by the build process
+            var iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ShortCutTool.exe");
+            if (File.Exists(iconPath))
+            {
+                var icon = Icon.ExtractAssociatedIcon(iconPath);
+                if (icon != null)
+                    return icon;
+            }
+        }
+        catch
+        {
+            // Fall through to default icon
+        }
+
+        // Fallback: try to load from the icon file directly (for development/debugging)
+        try
+        {
+            var iconFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "Icons", "app.ico");
+            if (File.Exists(iconFilePath))
+            {
+                return new Icon(iconFilePath, 16, 16); // Use 16x16 for tray
+            }
+        }
+        catch
+        {
+            // Fall through to system icon
+        }
+
+        // Final fallback: use system application icon
+        return SystemIcons.Application;
     }
 
     private ContextMenuStrip CreateContextMenu()
@@ -484,17 +521,33 @@ public class TrayApplicationContext : ApplicationContext
         {
             var key = keyTextBox.Text.Trim().ToUpperInvariant();
             var path = pathTextBox.Text.Trim();
+            var workDir = workDirTextBox.Text.Trim();
 
-            if (string.IsNullOrEmpty(key) || key.Length != 1)
+            // Validate key
+            var keyValidation = ConfigValidator.ValidateKey(key);
+            if (!keyValidation.IsValid)
             {
-                MessageBox.Show("Please enter a single letter key.", "Invalid Key", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(keyValidation.ErrorMessage, "Invalid Key", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            if (string.IsNullOrEmpty(path))
+            // Validate path
+            var pathValidation = ConfigValidator.ValidatePath(path, "Application path");
+            if (!pathValidation.IsValid)
             {
-                MessageBox.Show("Please select an application.", "Invalid Path", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(pathValidation.ErrorMessage, "Invalid Path", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
+            }
+
+            // Validate working directory
+            if (!string.IsNullOrEmpty(workDir))
+            {
+                var workDirValidation = ConfigValidator.ValidateWorkingDirectory(workDir);
+                if (!workDirValidation.IsValid)
+                {
+                    MessageBox.Show(workDirValidation.ErrorMessage, "Invalid Working Directory", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
             }
 
             // Check for duplicate key (but allow same key if editing)
@@ -509,7 +562,7 @@ public class TrayApplicationContext : ApplicationContext
                 // Update existing shortcut (including key if changed)
                 existingShortcut.Key = key;
                 existingShortcut.ApplicationPath = path;
-                existingShortcut.WorkingDirectory = workDirTextBox.Text.Trim();
+                existingShortcut.WorkingDirectory = workDir;
                 existingShortcut.UseMeh = mehCheckBox.Checked;
                 existingShortcut.UseHyperForReverse = hyperCheckBox.Checked;
 
@@ -530,7 +583,7 @@ public class TrayApplicationContext : ApplicationContext
                 {
                     Key = key,
                     ApplicationPath = path,
-                    WorkingDirectory = workDirTextBox.Text.Trim(),
+                    WorkingDirectory = workDir,
                     UseMeh = mehCheckBox.Checked,
                     UseHyperForReverse = hyperCheckBox.Checked
                 };

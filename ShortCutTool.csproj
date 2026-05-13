@@ -33,6 +33,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <None Include=".github\workflows\publish-winget.yml" />
     <None Include=".winget\Qisuk.ShortCutTool.installer.yaml" />
     <None Include=".winget\Qisuk.ShortCutTool.locale.en-US.yaml" />
     <None Include=".winget\Qisuk.ShortCutTool.yaml" />

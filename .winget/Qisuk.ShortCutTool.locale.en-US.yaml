@@ -2,7 +2,7 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
 
 PackageIdentifier: Qisuk.ShortCutTool
-PackageVersion: 1.0.0
+PackageVersion: 1.0.1
 PackageLocale: en-US
 Publisher: Qisuk
 PublisherUrl: https://github.com/Qisuk
@@ -35,7 +35,7 @@ Tags:
 - hyper-key
 - tray-app
 ReleaseNotes: |-
-  Initial release v1.0.0
+  Initial release v1.0.1
   - Meh and Hyper key support for keyboard shortcuts
   - Multi-window cycling with reverse direction
   - Visual popup UI showing window list
@@ -44,7 +44,8 @@ ReleaseNotes: |-
   - JSON configuration with security validation
   - Auto-start support
   - Environment variable support in paths
-ReleaseNotesUrl: https://github.com/Qisuk/ShortCutTool/releases/tag/v1.0.0
+ReleaseNotesUrl: https://github.com/Qisuk/ShortCutTool/releases/tag/v1.0.1
 ManifestType: defaultLocale
 ManifestVersion: 1.6.0
+
 

@@ -32,9 +32,10 @@ jobs:
           $tag = git describe --tags --exact-match 2>$null
           if ($tag) {
             $version = $tag -replace '^v', ''
+            Write-Host "Using version from git tag: $version"
           } else {
             # Fallback: extract from project file
-            $xml = [xml](Get-Content ShortCutTool.csproj)
+            [xml]$xml = Get-Content ShortCutTool.csproj
             $version = $xml.Project.PropertyGroup.Version
             if (-not $version) {
               $version = "0.0.1"
@@ -42,32 +43,79 @@ jobs:
             # Add timestamp for non-tag builds
             $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
             $version = "$version-$timestamp"
+            Write-Host "Using version from project file with timestamp: $version"
           }
-          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
-          echo "Version: $version"
+
+          # Write to GITHUB_OUTPUT using proper PowerShell Core syntax
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "VERSION=$version"
+          Write-Host "Version: $version"
 
       - name: Build and publish release
         shell: pwsh
         run: |
           $version = "${{ steps.version.outputs.VERSION }}"
-          dotnet publish ShortCutTool.csproj -c Release -o "release/publish" --self-contained false -r win-x64
+          Write-Host "Building version: $version"
 
-          # Create ZIP
+          # Build and publish
+          & dotnet publish ShortCutTool.csproj -c Release -o "release/publish" --self-contained false -r win-x64
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Dotnet publish failed with exit code $LASTEXITCODE"
+            exit 1
+          }
+
+          # Verify publish directory exists and has files
+          $publishDir = "release/publish"
+          if (-not (Test-Path $publishDir)) {
+            Write-Error "Publish directory not found: $publishDir"
+            exit 1
+          }
+
+          $files = @(Get-ChildItem $publishDir -Recurse)
+          Write-Host "Found $($files.Count) files in publish directory"
+
+          # Create ZIP - use explicit directory path, not wildcard
           $zipPath = "release/ShortCutTool-v$version.zip"
-          Compress-Archive -Path "release/publish/*" -DestinationPath $zipPath -Force
+          Write-Host "Creating ZIP: $zipPath"
+          Compress-Archive -Path "$publishDir/*" -DestinationPath $zipPath -Force -ErrorAction Stop
+
+          # Verify ZIP was created
+          if (-not (Test-Path $zipPath)) {
+            Write-Error "ZIP file was not created: $zipPath"
+            exit 1
+          }
 
           # Calculate SHA256
           $hash = (Get-FileHash $zipPath -Algorithm SHA256).Hash
-          echo "PACKAGE_HASH=$hash" >> $env:GITHUB_OUTPUT
-          echo "ZIP_PATH=$zipPath" >> $env:GITHUB_OUTPUT
-          echo "ZIP_NAME=ShortCutTool-v$version.zip" >> $env:GITHUB_OUTPUT
-          echo "Package hash: $hash"
-          echo "ZIP file: $zipPath"
+
+          # Write to GITHUB_OUTPUT using proper PowerShell Core syntax
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "PACKAGE_HASH=$hash"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "ZIP_PATH=$zipPath"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "ZIP_NAME=ShortCutTool-v$version.zip"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "RELEASE_TAG=v$version"
+
+          Write-Host "Package hash: $hash"
+          Write-Host "ZIP file: $zipPath"
+          Write-Host "Build completed successfully"
         id: build
+
+      - name: Create Git Tag (if not already tagged)
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $tagName = "v$version"
+
+          # Check if tag already exists
+          $existingTag = git tag -l $tagName
+          if ($existingTag) {
+            Write-Host "Tag already exists: $tagName"
+          } else {
+            Write-Host "Creating tag: $tagName"
+            git tag $tagName
+            git push origin $tagName
+          }
 
       - name: Create Release and Upload Asset
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/master'
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
           name: Release v${{ steps.version.outputs.VERSION }}
@@ -145,7 +193,8 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ github.event.release.tag_name }}" -replace '^v', ''
-          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "VERSION=$version"
+          Write-Host "Version: $version"
           echo "Version: $version"
 
       # Winget submission steps would go here (currently commented out)

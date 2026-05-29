@@ -19,6 +19,23 @@ A Windows keyboard shortcut manager that uses **Meh** (Ctrl+Alt+Shift) and **Hyp
 
 These combinations are rarely used by other applications, making them perfect for global shortcuts!
 
+## Latest Release
+
+**Version**: v1.0.0-20260529-185340
+
+**Download**: [ShortCutTool-v1.0.0-20260529-185340.zip](https://github.com/Qisuk/ShortCutTool/releases/download/v1.0.0-20260529-185340/ShortCutTool-v1.0.0-20260529-185340.zip)
+
+**SHA256 Checksum**:
+```
+FE8DF8619A2917CB800CC7013C97F1C35A44478D264A4F949985FFB70ADB26ED
+```
+
+### Verify Download
+Use PowerShell:
+```powershell
+Get-FileHash .\ShortCutTool-v1.0.0-20260529-185340.zip -Algorithm SHA256
+```
+
 ## Quick Start
 
 ### Installation
@@ -185,4 +202,5 @@ MIT License - see LICENSE file for details
 ---
 
 **Tip**: Start with a few shortcuts, get comfortable with Meh key combinations, then add more as needed!
+
 

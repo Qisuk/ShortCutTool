@@ -19,7 +19,7 @@
     <RepositoryUrl>https://github.com/Qisuk/ShortCutTool</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/Qisuk/ShortCutTool</PackageProjectUrl>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReadmeFile>Documents\README.md</PackageReadmeFile>
 
     <!-- Application Icon -->
     <ApplicationIcon>Assets\Icons\app.ico</ApplicationIcon>
@@ -33,10 +33,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
-    <None Include=".github\workflows\publish-winget.yml" />
-    <None Include=".winget\Qisuk.ShortCutTool.installer.yaml" />
-    <None Include=".winget\Qisuk.ShortCutTool.locale.en-US.yaml" />
-    <None Include=".winget\Qisuk.ShortCutTool.yaml" />
+    <None Include=".github\workflows\publish.yml" />
   </ItemGroup>
 
 </Project>

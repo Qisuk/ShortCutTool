@@ -258,9 +258,7 @@ public class TrayApplicationContext : ApplicationContext
         {
             Text = "Save & Restart",
             Size = new Size(120, 35),
-            Location = new Point(form.ClientSize.Width - 252, 12),
-            Font = new Font("Segoe UI", 9F, FontStyle.Regular),
-            Anchor = AnchorStyles.Right | AnchorStyles.Top
+            Font = new Font("Segoe UI", 9F, FontStyle.Regular)
         };
         saveButton.Click += (s, e) => SaveAndRestart(bindingList);
 
@@ -268,9 +266,7 @@ public class TrayApplicationContext : ApplicationContext
         {
             Text = "Close",
             Size = new Size(100, 35),
-            Location = new Point(form.ClientSize.Width - 122, 12),
-            Font = new Font("Segoe UI", 9F, FontStyle.Regular),
-            Anchor = AnchorStyles.Right | AnchorStyles.Top
+            Font = new Font("Segoe UI", 9F, FontStyle.Regular)
         };
         closeButton.Click += (s, e) => form.Close();
 
@@ -289,11 +285,22 @@ public class TrayApplicationContext : ApplicationContext
             }
         };
 
+        // Create a flow layout panel for right-aligned buttons
+        var rightButtonPanel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Right,
+            Width = 240,
+            Padding = new Padding(0),
+            WrapContents = false,
+            AutoScroll = false
+        };
+        rightButtonPanel.Controls.Add(saveButton);
+        rightButtonPanel.Controls.Add(closeButton);
+
         buttonPanel.Controls.Add(addButton);
         buttonPanel.Controls.Add(editButton);
         buttonPanel.Controls.Add(removeButton);
-        buttonPanel.Controls.Add(saveButton);
-        buttonPanel.Controls.Add(closeButton);
+        buttonPanel.Controls.Add(rightButtonPanel);
 
         form.Controls.Add(dataGridView);
         form.Controls.Add(infoPanel);
@@ -408,7 +415,7 @@ public class TrayApplicationContext : ApplicationContext
                 openFileDialog.FileName = pathTextBox.Text;
             }
 
-            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            if (openFileDialog.ShowDialog(dialog) == DialogResult.OK)
             {
                 pathTextBox.Text = openFileDialog.FileName;
             }
@@ -455,7 +462,7 @@ public class TrayApplicationContext : ApplicationContext
                     : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
             };
 
-            if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
+            if (folderBrowserDialog.ShowDialog(dialog) == DialogResult.OK)
             {
                 workDirTextBox.Text = folderBrowserDialog.SelectedPath;
             }

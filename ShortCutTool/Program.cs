@@ -14,33 +14,7 @@ class Program
 
         if (!File.Exists(configFile))
         {
-            MessageBox.Show(
-                $"Configuration file '{configFile}' not found. Creating default configuration file.",
-                "ShortCut Tool",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
-
-            var defaultConfig = new AppShortcutConfig
-            {
-                Shortcuts = new List<ShortcutMapping>
-                {
-                    new()
-                    {
-                        Key = "C",
-                        UseMeh = true,
-                        ApplicationPath = "C:\\Users\\YourUsername\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
-                    },
-                    new()
-                    {
-                        Key = "V",
-                        UseMeh = true,
-                        ApplicationPath = "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\devenv.exe"
-                    }
-                }
-            };
-
-            var json = JsonSerializer.Serialize(defaultConfig, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(configFile, json);
+            CreateDefaultConfig(configFile);
         }
 
         var configJson = File.ReadAllText(configFile);
@@ -101,5 +75,36 @@ class Program
 
         var trayApp = new TrayApplicationContext(config.Shortcuts);
         Application.Run(trayApp);
+    }
+
+    private static void CreateDefaultConfig(string configFile)
+    {
+        MessageBox.Show(
+            $"Configuration file '{configFile}' not found. Creating default configuration file.",
+            "ShortCut Tool",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information);
+
+        var defaultConfig = new AppShortcutConfig
+        {
+            Shortcuts = new List<ShortcutMapping>
+                {
+                    new()
+                    {
+                        Key = "C",
+                        UseMeh = true,
+                        ApplicationPath = "C:\\Users\\YourUsername\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
+                    },
+                    new()
+                    {
+                        Key = "V",
+                        UseMeh = true,
+                        ApplicationPath = "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\devenv.exe"
+                    }
+                }
+        };
+
+        var json = JsonSerializer.Serialize(defaultConfig, new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText(configFile, json);
     }
 }

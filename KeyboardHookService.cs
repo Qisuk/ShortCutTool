@@ -5,33 +5,50 @@ namespace ShortCutTool;
 
 public class KeyboardHookService : IDisposable
 {
-    private const int WH_KEYBOARD_LL = 13;
-    private const int WM_KEYDOWN = 0x0100;
-    private const int WM_SYSKEYDOWN = 0x0104;
-    private const int WM_KEYUP = 0x0101;
-    private const int WM_SYSKEYUP = 0x0105;
+    /// <summary>
+    /// Windows hook constants.
+    /// </summary>
+    private const int WH_KEYBOARD_LL = 13;           // Low-level keyboard hook.
+    private const int WM_KEYDOWN = 0x0100;           // Key pressed.
+    private const int WM_SYSKEYDOWN = 0x0104;        // System key (Alt) pressed.
+    private const int WM_KEYUP = 0x0101;             // Key released.
+    private const int WM_SYSKEYUP = 0x0105;          // System key (Alt) released.
 
     private readonly LowLevelKeyboardProc _proc;
     private readonly IntPtr _hookId = IntPtr.Zero;
     private readonly Dictionary<string, ShortcutMapping> _shortcuts = new();
     private readonly Dictionary<string, int> _currentInstanceIndex = new();
+    private readonly ModifierKeyState _modifierKeyState = new();
 
-    private bool _ctrlPressed;
-    private bool _altPressed;
-    private bool _shiftPressed;
-    private bool _winPressed;
     private CyclePopup? _activePopup;
 
+    /// <summary>
+    /// Initializes a new instance of the KeyboardHookService class.
+    /// Sets up the low-level keyboard hook for global hotkey capture.
+    /// </summary>
     public KeyboardHookService()
     {
         _proc = HookCallback;
         _hookId = SetHook(_proc);
     }
 
+    /// <summary>
+    /// Registers a new keyboard shortcut that will be monitored by the hook.
+    /// </summary>
+    /// <param name="mapping">The shortcut mapping configuration to register</param>
     public void RegisterShortcut(ShortcutMapping mapping)
     {
         var key = mapping.Key.ToUpperInvariant();
         _shortcuts[key] = mapping;
+    }
+
+    /// <summary>
+    /// Disposes the keyboard hook and releases resources.
+    /// Should be called when the service is no longer needed to uninstall the global hook.
+    /// </summary>
+    public void Dispose()
+    {
+        UnhookWindowsHookEx(_hookId);
     }
 
     private IntPtr SetHook(LowLevelKeyboardProc proc)
@@ -48,41 +65,21 @@ public class KeyboardHookService : IDisposable
             var vkCode = Marshal.ReadInt32(lParam);
             var key = ((Keys)vkCode).ToString().ToUpperInvariant();
 
-            // Track modifier keys
-            if (key == "LCONTROLKEY" || key == "RCONTROLKEY" || key == "CONTROLKEY")
-            {
-                _ctrlPressed = true;
-            }
-            else if (key == "LMENU" || key == "RMENU" || key == "MENU")
-            {
-                _altPressed = true;
-            }
-            else if (key == "LSHIFTKEY" || key == "RSHIFTKEY" || key == "SHIFTKEY")
-            {
-                _shiftPressed = true;
-            }
-            else if (key == "LWIN" || key == "RWIN")
-            {
-                _winPressed = true;
-            }
-            else
-            {
-                // Check for shortcut activation
-                if (_shortcuts.TryGetValue(key, out var mapping))
-                {
-                    bool mehPressed = _ctrlPressed && _altPressed && _shiftPressed && !_winPressed;
-                    bool hyperPressed = _ctrlPressed && _altPressed && _shiftPressed && _winPressed;
+            // Update modifier key state
+            _modifierKeyState.HandleKeyDown(key);
 
-                    if (mapping.UseMeh && mehPressed)
-                    {
-                        Task.Run(() => HandleShortcut(mapping, key, false));
-                        return (IntPtr)1; // Suppress the key
-                    }
-                    else if (mapping.UseHyperForReverse && hyperPressed)
-                    {
-                        Task.Run(() => HandleShortcut(mapping, key, true));
-                        return (IntPtr)1; // Suppress the key
-                    }
+            // Check for shortcut activation
+            if (_shortcuts.TryGetValue(key, out var mapping))
+            {
+                if (mapping.UseMeh && _modifierKeyState.IsMehPressed)
+                {
+                    Task.Run(() => HandleShortcut(mapping, key, false));
+                    return (IntPtr)1; // Suppress the key
+                }
+                else if (mapping.UseHyperForReverse && _modifierKeyState.IsHyperPressed)
+                {
+                    Task.Run(() => HandleShortcut(mapping, key, true));
+                    return (IntPtr)1; // Suppress the key
                 }
             }
         }
@@ -91,29 +88,12 @@ public class KeyboardHookService : IDisposable
             var vkCode = Marshal.ReadInt32(lParam);
             var key = ((Keys)vkCode).ToString().ToUpperInvariant();
 
-            // Release modifier keys
-            if (key == "LCONTROLKEY" || key == "RCONTROLKEY" || key == "CONTROLKEY")
-            {
-                _ctrlPressed = false;
-            }
-            else if (key == "LMENU" || key == "RMENU" || key == "MENU")
-            {
-                _altPressed = false;
-            }
-            else if (key == "LSHIFTKEY" || key == "RSHIFTKEY" || key == "SHIFTKEY")
-            {
-                _shiftPressed = false;
-            }
-            else if (key == "LWIN" || key == "RWIN")
-            {
-                _winPressed = false;
-            }
+            // Update modifier key state
+            _modifierKeyState.HandleKeyUp(key);
 
-            // Check if Meh/Hyper combination is released
-            bool mehReleased = !(_ctrlPressed && _altPressed && _shiftPressed);
-            if (mehReleased && _activePopup != null)
+            // Dismiss popup when all modifiers are released
+            if (!_modifierKeyState.AnyModifierPressed && _activePopup != null)
             {
-                // Dismiss popup when modifiers are released
                 var popup = _activePopup;
                 _activePopup = null;
                 Task.Run(() =>
@@ -130,6 +110,14 @@ public class KeyboardHookService : IDisposable
         return CallNextHookEx(_hookId, nCode, wParam, lParam);
     }
 
+    /// <summary>
+    /// Handles the execution of a registered shortcut by launching or cycling windows.
+    /// Attempts to find running instances of the application, or launches it if not running.
+    /// For multiple instances, displays an async popup and cycles through them.
+    /// </summary>
+    /// <param name="mapping">The shortcut mapping configuration</param>
+    /// <param name="key">The key that was pressed (for tracking current instance)</param>
+    /// <param name="reverse">Whether to cycle backward through instances</param>
     private void HandleShortcut(ShortcutMapping mapping, string key, bool reverse)
     {
         try
@@ -213,19 +201,28 @@ public class KeyboardHookService : IDisposable
                             _activePopup.ShowPopup();
                         }
                     }
-                    catch
+                    catch (Exception popupEx)
                     {
-                        // Silently ignore popup errors - don't interrupt cycling
+                        // Log popup errors but don't interrupt cycling - popup is non-critical UI feedback
+                        System.Diagnostics.Debug.WriteLine($"Warning: Failed to display cycle popup: {popupEx.Message}");
                     }
                 });
             }
         }
         catch (Exception ex)
         {
+            // Log and display errors in shortcut handling
+            System.Diagnostics.Debug.WriteLine($"Error handling shortcut '{key}': {ex.Message}\n{ex.StackTrace}");
             MessageBox.Show($"Error handling shortcut: {ex.Message}\n\n{ex.StackTrace}", "ShortCutTool Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
+    /// <summary>
+    /// Brings the specified window to the foreground and restores it if minimized.
+    /// Uses multiple methods for reliability across different window states.
+    /// Handles thread attachment for cross-thread window operations.
+    /// </summary>
+    /// <param name="windowHandle">The handle of the window to bring to front</param>
     private void BringWindowToFront(IntPtr windowHandle)
     {
         // Restore if minimized
@@ -274,16 +271,20 @@ public class KeyboardHookService : IDisposable
         }
     }
 
-    public void Dispose()
-    {
-        UnhookWindowsHookEx(_hookId);
-    }
-
+    /// <summary>
+    /// Callback delegate for low-level keyboard events.
+    /// </summary>
     private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
+    /// <summary>
+    /// Installs a hook procedure into a hook chain.
+    /// </summary>
     [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
 
+    /// <summary>
+    /// Removes a hook procedure from the hook chain.
+    /// </summary>
     [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool UnhookWindowsHookEx(IntPtr hhk);
@@ -291,53 +292,102 @@ public class KeyboardHookService : IDisposable
     [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
 
+    /// <summary>
+    /// Retrieves a module handle for the specified module.
+    /// </summary>
     [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     private static extern IntPtr GetModuleHandle(string? lpModuleName);
 
+    /// <summary>
+    /// Sets the foreground window (the window receives keyboard input).
+    /// </summary>
     [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
 
+    /// <summary>
+    /// Brings the specified window to the top of the Z-order.
+    /// </summary>
     [DllImport("user32.dll")]
     private static extern bool BringWindowToTop(IntPtr hWnd);
 
+    /// <summary>
+    /// Sets the specified window's show state.
+    /// </summary>
     [DllImport("user32.dll")]
     private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
+    /// <summary>
+    /// Determines whether the specified window is minimized (iconic).
+    /// </summary>
     [DllImport("user32.dll")]
     private static extern bool IsIconic(IntPtr hWnd);
 
+    /// <summary>
+    /// Retrieves a handle to the foreground window (the window which the user is currently working with).
+    /// </summary>
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
 
+    /// <summary>
+    /// Retrieves the identifier of the thread that created the specified window.
+    /// </summary>
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr ProcessId);
 
+    /// <summary>
+    /// Retrieves the current thread identifier.
+    /// </summary>
     [DllImport("kernel32.dll")]
     private static extern uint GetCurrentThreadId();
 
+    /// <summary>
+    /// Attaches or detaches the input processing mechanism of one thread to that of another thread.
+    /// </summary>
     [DllImport("user32.dll")]
     private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
 
+    /// <summary>
+    /// Sets the keyboard focus to the specified window.
+    /// </summary>
     [DllImport("user32.dll")]
     private static extern IntPtr SetFocus(IntPtr hWnd);
 
     [DllImport("user32.dll")]
     private static extern bool FlashWindowEx(ref FLASHWINFO pfwi);
 
+    /// <summary>
+    /// Contains the flash status for a window and the area of the window to be flashed.
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     private struct FLASHWINFO
     {
+        /// <summary>The size of the structure, in bytes.</summary>
         public uint cbSize;
+
+        /// <summary>A handle to the window to be flashed.</summary>
         public IntPtr hwnd;
+
+        /// <summary>The flash status.</summary>
         public uint dwFlags;
+
+        /// <summary>The number of times to flash the window.</summary>
         public uint uCount;
+
+        /// <summary>The rate at which the window is to be flashed, in milliseconds.</summary>
         public uint dwTimeout;
     }
 
-    private const int SW_RESTORE = 9;
-    private const int SW_SHOW = 5;
-    private const uint FLASHW_TRAY = 0x00000002;
-    private const uint FLASHW_TIMERNOFG = 0x0000000C;
+    /// <summary>
+    /// Window show command constants.
+    /// </summary>
+    private const int SW_RESTORE = 9;  // Activates and displays a window. If the window is minimized or maximized, the system restores it to its original size and position.
+    private const int SW_SHOW = 5;     // Activates the window and displays it in its current size and position.
+
+    /// <summary>
+    /// Flash window flags.
+    /// </summary>
+    private const uint FLASHW_TRAY = 0x00000002;        // Flash the window's title bar.
+    private const uint FLASHW_TIMERNOFG = 0x0000000C;   // Flash continuously until the window comes to the foreground.
 
     private enum Keys
     {

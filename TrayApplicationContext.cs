@@ -5,11 +5,19 @@ using System.Text.Json;
 
 namespace ShortCutTool;
 
+/// <summary>
+/// Manages the system tray application context, including the tray icon and context menu.
+/// Provides UI for viewing and managing shortcuts.
+/// </summary>
 public class TrayApplicationContext : ApplicationContext
 {
     private readonly NotifyIcon _trayIcon;
     private readonly List<ShortcutMapping> _shortcuts;
 
+    /// <summary>
+    /// Initializes a new instance of the TrayApplicationContext class.
+    /// </summary>
+    /// <param name="shortcuts">The list of configured shortcuts to display</param>
     public TrayApplicationContext(List<ShortcutMapping> shortcuts)
     {
         _shortcuts = shortcuts;
@@ -113,7 +121,7 @@ public class TrayApplicationContext : ApplicationContext
         aboutMessage.AppendLine("Meh = Ctrl+Alt+Shift");
         aboutMessage.AppendLine("Hyper = Ctrl+Alt+Shift+Win");
         aboutMessage.AppendLine();
-        aboutMessage.AppendLine("© 2025");
+        aboutMessage.AppendLine("© 2026");
         aboutMessage.AppendLine();
         aboutMessage.AppendLine("https://github.com/Qisuk/ShortCutTool");
 

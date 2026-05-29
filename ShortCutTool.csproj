@@ -13,7 +13,7 @@
     <Copyright>Copyright © 2026</Copyright>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
-    <Version>1.0.0</Version>
+    <Version>1.0.3</Version>
     <Description>Keyboard shortcut manager with Meh/Hyper key support for launching and cycling through application windows</Description>
     <Authors>ChrisMoir</Authors>
     <RepositoryUrl>https://github.com/Qisuk/ShortCutTool</RepositoryUrl>

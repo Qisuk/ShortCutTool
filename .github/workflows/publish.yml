@@ -32,7 +32,7 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $ErrorActionPreference = 'Stop'
+           $ErrorActionPreference = 'Stop'
 
           # If this run was triggered by a tag push, use that tag.
           if ("${{ github.ref }}" -like "refs/tags/v*") {
@@ -51,7 +51,11 @@ jobs:
             Write-Host "Using version from project file with timestamp: $version"
           }
 
-          "VERSION=$version" >> $env:GITHUB_OUTPUT
+          if (-not (Test-Path $env:GITHUB_OUTPUT)) {
+            "" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+          }
+
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "VERSION=$version" -Encoding utf8
           Write-Host "Version: $version"
 
       - name: Build and publish release
@@ -89,10 +93,14 @@ jobs:
 
           $hash = (Get-FileHash $zipPath -Algorithm SHA256).Hash
 
-          "PACKAGE_HASH=$hash" >> $env:GITHUB_OUTPUT
-          "ZIP_PATH=$zipPath" >> $env:GITHUB_OUTPUT
-          "ZIP_NAME=ShortCutTool-v$version.zip" >> $env:GITHUB_OUTPUT
-          "RELEASE_TAG=v$version" >> $env:GITHUB_OUTPUT
+          if (-not (Test-Path $env:GITHUB_OUTPUT)) {
+            "" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+          }
+
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "PACKAGE_HASH=$hash" -Encoding utf8
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "ZIP_PATH=$zipPath" -Encoding utf8
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "ZIP_NAME=ShortCutTool-v$version.zip" -Encoding utf8
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "RELEASE_TAG=v$version" -Encoding utf8
 
           Write-Host "Package hash: $hash"
           Write-Host "ZIP file: $zipPath"
@@ -217,13 +225,18 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Get version from tag
-        id: get_version
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
+       id: get_version
+       shell: pwsh
+       run: |
+         $ErrorActionPreference = 'Stop'
 
-          $version = "${{ github.ref_name }}" -replace '^v', ''
-          "VERSION=$version" >> $env:GITHUB_OUTPUT
-          Write-Host "Version: $version"
+         $version = "${{ github.ref_name }}" -replace '^v', ''
+
+         if (-not (Test-Path $env:GITHUB_OUTPUT)) {
+           "" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+         }
+
+         Add-Content -Path $env:GITHUB_OUTPUT -Value "VERSION=$version" -Encoding utf8
+         Write-Host "Version: $version"
 
       # Winget submission steps would go here

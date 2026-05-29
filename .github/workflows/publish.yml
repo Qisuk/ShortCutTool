@@ -1,4 +1,5 @@
 name: Publish Release
+
 on:
   push:
     branches:
@@ -8,6 +9,9 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: write
 
 jobs:
   build-and-release:
@@ -30,42 +34,28 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
 
-          # Try to get version from git tag
-          $tag = git describe --tags --exact-match 2>$null
-          if ($tag) {
-            $version = $tag -replace '^v', ''
-            Write-Host "Using version from git tag: $version"
+          # If this run was triggered by a tag push, use that tag.
+          if ("${{ github.ref }}" -like "refs/tags/v*") {
+            $version = "${{ github.ref_name }}" -replace '^v', ''
+            Write-Host "Using version from pushed tag: $version"
           } else {
-            # Fallback: extract from project file
-            try {
-              [xml]$xml = Get-Content ShortCutTool.csproj -ErrorAction Stop
-              $version = $xml.Project.PropertyGroup.Version
-              if (-not $version) {
-                $version = "0.0.1"
-              }
-            }
-            catch {
-              Write-Host "Warning: Could not parse project file, using default version"
+            # Fallback: extract from project file for branch builds
+            [xml]$xml = Get-Content ShortCutTool.csproj
+            $version = $xml.Project.PropertyGroup.Version
+            if (-not $version) {
               $version = "0.0.1"
             }
 
-            # Add timestamp for non-tag builds
             $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
             $version = "$version-$timestamp"
             Write-Host "Using version from project file with timestamp: $version"
           }
 
-          # Write to GITHUB_OUTPUT
-          if (-not (Test-Path $env:GITHUB_OUTPUT)) {
-            Write-Host "GITHUB_OUTPUT file does not exist, creating it"
-            "" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
-          }
-
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "VERSION=$version" -Encoding utf8 -ErrorAction Stop
-          Write-Host "Successfully wrote VERSION to GITHUB_OUTPUT"
+          "VERSION=$version" >> $env:GITHUB_OUTPUT
           Write-Host "Version: $version"
 
       - name: Build and publish release
+        id: build
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -73,14 +63,12 @@ jobs:
           $version = "${{ steps.version.outputs.VERSION }}"
           Write-Host "Building version: $version"
 
-          # Build and publish
           & dotnet publish ShortCutTool.csproj -c Release -o "release/publish" --self-contained false -r win-x64
           if ($LASTEXITCODE -ne 0) {
-            Write-Error "Dotnet publish failed with exit code $LASTEXITCODE"
+            Write-Error "dotnet publish failed with exit code $LASTEXITCODE"
             exit 1
           }
 
-          # Verify publish directory exists and has files
           $publishDir = "release/publish"
           if (-not (Test-Path $publishDir)) {
             Write-Error "Publish directory not found: $publishDir"
@@ -90,54 +78,49 @@ jobs:
           $files = @(Get-ChildItem $publishDir -Recurse)
           Write-Host "Found $($files.Count) files in publish directory"
 
-          # Create ZIP - use explicit directory path, not wildcard
           $zipPath = "release/ShortCutTool-v$version.zip"
           Write-Host "Creating ZIP: $zipPath"
-          Compress-Archive -Path "$publishDir/*" -DestinationPath $zipPath -Force -ErrorAction Stop
+          Compress-Archive -Path "$publishDir\*" -DestinationPath $zipPath -Force
 
-          # Verify ZIP was created
           if (-not (Test-Path $zipPath)) {
             Write-Error "ZIP file was not created: $zipPath"
             exit 1
           }
 
-          # Calculate SHA256
           $hash = (Get-FileHash $zipPath -Algorithm SHA256).Hash
 
-          # Ensure GITHUB_OUTPUT file exists and write outputs
-          if (-not (Test-Path $env:GITHUB_OUTPUT)) {
-            "" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
-          }
+          "PACKAGE_HASH=$hash" >> $env:GITHUB_OUTPUT
+          "ZIP_PATH=$zipPath" >> $env:GITHUB_OUTPUT
+          "ZIP_NAME=ShortCutTool-v$version.zip" >> $env:GITHUB_OUTPUT
+          "RELEASE_TAG=v$version" >> $env:GITHUB_OUTPUT
 
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "PACKAGE_HASH=$hash" -Encoding utf8 -ErrorAction Stop
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "ZIP_PATH=$zipPath" -Encoding utf8 -ErrorAction Stop
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "ZIP_NAME=ShortCutTool-v$version.zip" -Encoding utf8 -ErrorAction Stop
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "RELEASE_TAG=v$version" -Encoding utf8 -ErrorAction Stop
-
-          Write-Host "Successfully wrote outputs to GITHUB_OUTPUT"
           Write-Host "Package hash: $hash"
           Write-Host "ZIP file: $zipPath"
           Write-Host "Build completed successfully"
-        id: build
 
-      - name: Create Git Tag (if not already tagged)
+      - name: Create Git Tag (branch builds only)
+        if: github.ref == 'refs/heads/master'
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+
           $version = "${{ steps.version.outputs.VERSION }}"
           $tagName = "v$version"
 
-          # Check if tag already exists
           $existingTag = git tag -l $tagName
           if ($existingTag) {
             Write-Host "Tag already exists: $tagName"
           } else {
             Write-Host "Creating tag: $tagName"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git tag $tagName
             git push origin $tagName
           }
 
       - name: Create Release and Upload Asset
-        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
           name: Release v${{ steps.version.outputs.VERSION }}
@@ -154,46 +137,66 @@ jobs:
           files: ${{ steps.build.outputs.ZIP_PATH }}
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update README with Release Info
+        if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+
           $version = "${{ steps.version.outputs.VERSION }}"
           $hash = "${{ steps.build.outputs.PACKAGE_HASH }}"
           $downloadUrl = "https://github.com/${{ github.repository }}/releases/download/v$version/ShortCutTool-v$version.zip"
 
-          # Read current README
           $readme = Get-Content README.md -Raw
 
-          # Create new download section
-          $downloadSection = "## Latest Release`n`n**Version**: v$version`n`n**Download**: [ShortCutTool-v$version.zip]($downloadUrl)`n`n**SHA256 Checksum**:`n\`\`\`n$hash`n\`\`\``n`n### Verify Download`nTo verify the integrity of your download, calculate the SHA256 hash of the downloaded file and compare it to the checksum above.`n`n**PowerShell:**`n\`\`\`powershell`n(Get-FileHash 'ShortCutTool-v$version.zip' -Algorithm SHA256).Hash`n\`\`\``n`n---`n`n"
+          $downloadSection = @"
+## Latest Release
 
-          # Insert after Quick Start section if it exists, otherwise after title
-          if ($readme -match '## Quick Start') {
-            $readme = $readme -replace '(## Quick Start)', ($downloadSection + '$1')
+**Version**: v$version
+
+**Download**: [ShortCutTool-v$version.zip]($downloadUrl)
+
+**SHA256 Checksum**:
+```
+$hash
+```
+
+### Verify Download
+Use PowerShell:
+```powershell
+Get-FileHash .\ShortCutTool-v$version.zip -Algorithm SHA256
+```
+
+"@
+
+          if ($readme -match '(?s)## Latest Release.*?(?=\r?\n## |\z)') {
+            $readme = [regex]::Replace($readme, '(?s)## Latest Release.*?(?=\r?\n## |\z)', $downloadSection.TrimEnd())
+          } elseif ($readme -match '## Quick Start') {
+            $readme = $readme -replace '## Quick Start', ($downloadSection + "`r`n## Quick Start")
           } else {
-            $readme = $readme -replace '(# ShortCutTool.*?\n)', ('$1' + "`n" + $downloadSection)
+            $readme = $readme -replace '(?s)^(# .*?\r?\n)', ('$1' + "`r`n" + $downloadSection + "`r`n")
           }
 
-          # Write updated README
-          Set-Content README.md -Value $readme -Encoding UTF8inget
-
-          echo "README updated with version $version"
+          Set-Content README.md -Value $readme -Encoding utf8
+          Write-Host "README updated with version $version"
 
       - name: Commit and Push README Update
+        if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          if (git diff --quiet README.md) {
-            echo "No changes to README"
+          git add README.md
+
+          if (git diff --cached --quiet) {
+            Write-Host "No changes to README"
           } else {
-            git add README.md
             git commit -m "chore: update README with v${{ steps.version.outputs.VERSION }} release info"
-            git push
+            git push origin HEAD:master
           }
 
   publish-to-winget:
@@ -210,21 +213,14 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Get version from release
+      - name: Get version from tag
         id: get_version
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
 
-          $version = "${{ github.event.release.tag_name }}" -replace '^v', ''
-
-          # Ensure GITHUB_OUTPUT file exists
-          if (-not (Test-Path $env:GITHUB_OUTPUT)) {
-            "" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
-          }
-
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "VERSION=$version" -Encoding utf8 -ErrorAction Stop
+          $version = "${{ github.ref_name }}" -replace '^v', ''
+          "VERSION=$version" >> $env:GITHUB_OUTPUT
           Write-Host "Version: $version"
-          echo "Version: $version"
 
-      # Winget submission steps would go here (currently commented out)
+      # Winget submission steps would go here

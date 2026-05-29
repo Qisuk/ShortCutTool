@@ -6,9 +6,11 @@ All markdown (.md) documentation files for this project should be saved to the `
 
 ### Folder Structure
 
+- **Root level** - Solution root directory
+  - `copilot-instructions.md` - Copilot coding guidelines and instructions (exempt from Documents folder)
+  - `README.md` - Main project documentation (exempt from Documents folder)
+
 - **Documents/** - Main documentation folder (solution root level)
-  - `copilot-instructions.md` - This file with coding guidelines and instructions
-  - `README.md` - Main project documentation
   - `CHANGELOG.md` - Version history and changes
   - Other project documentation files (.md files)
 
@@ -18,8 +20,9 @@ All markdown (.md) documentation files for this project should be saved to the `
 ### When Creating New Documentation
 
 1. Always save new `.md` files to the `Documents/` folder
-2. For icon-related documentation, use `Documents/Icons/` subdirectory
-3. Update the `ShortCutTool.csproj` file if the documentation file needs to be included in the package
+2. **Exception:** `copilot-instructions.md` and `README.md` should remain at the solution root level for standard GitHub/workspace conventions
+3. For icon-related documentation, use `Documents/Icons/` subdirectory
+4. Update the `ShortCutTool.csproj` file if the documentation file needs to be included in the package
 
 ### Project File References
 
@@ -39,5 +42,6 @@ Ensure any scripts that reference documentation files use the updated `Documents
 ## Notes
 
 - The `Assets/Icons/` folder now contains only icon files and resources
-- All `.md` files have been consolidated under `Documents/` for better organization
-- This improves maintainability and keeps documentation separate from code
+- Primary documentation (`README.md`, `copilot-instructions.md`) is at the solution root for GitHub conventions
+- Additional `.md` files have been consolidated under `Documents/` for better organization
+- This improves maintainability and keeps documentation organized by category

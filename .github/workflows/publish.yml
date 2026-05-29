@@ -28,6 +28,8 @@ jobs:
         id: version
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+
           # Try to get version from git tag
           $tag = git describe --tags --exact-match 2>$null
           if ($tag) {
@@ -35,24 +37,39 @@ jobs:
             Write-Host "Using version from git tag: $version"
           } else {
             # Fallback: extract from project file
-            [xml]$xml = Get-Content ShortCutTool.csproj
-            $version = $xml.Project.PropertyGroup.Version
-            if (-not $version) {
+            try {
+              [xml]$xml = Get-Content ShortCutTool.csproj -ErrorAction Stop
+              $version = $xml.Project.PropertyGroup.Version
+              if (-not $version) {
+                $version = "0.0.1"
+              }
+            }
+            catch {
+              Write-Host "Warning: Could not parse project file, using default version"
               $version = "0.0.1"
             }
+
             # Add timestamp for non-tag builds
             $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
             $version = "$version-$timestamp"
             Write-Host "Using version from project file with timestamp: $version"
           }
 
-          # Write to GITHUB_OUTPUT using proper PowerShell Core syntax
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "VERSION=$version"
+          # Write to GITHUB_OUTPUT
+          if (-not (Test-Path $env:GITHUB_OUTPUT)) {
+            Write-Host "GITHUB_OUTPUT file does not exist, creating it"
+            "" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+          }
+
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "VERSION=$version" -Encoding utf8 -ErrorAction Stop
+          Write-Host "Successfully wrote VERSION to GITHUB_OUTPUT"
           Write-Host "Version: $version"
 
       - name: Build and publish release
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+
           $version = "${{ steps.version.outputs.VERSION }}"
           Write-Host "Building version: $version"
 
@@ -87,12 +104,17 @@ jobs:
           # Calculate SHA256
           $hash = (Get-FileHash $zipPath -Algorithm SHA256).Hash
 
-          # Write to GITHUB_OUTPUT using proper PowerShell Core syntax
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "PACKAGE_HASH=$hash"
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "ZIP_PATH=$zipPath"
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "ZIP_NAME=ShortCutTool-v$version.zip"
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "RELEASE_TAG=v$version"
+          # Ensure GITHUB_OUTPUT file exists and write outputs
+          if (-not (Test-Path $env:GITHUB_OUTPUT)) {
+            "" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+          }
 
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "PACKAGE_HASH=$hash" -Encoding utf8 -ErrorAction Stop
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "ZIP_PATH=$zipPath" -Encoding utf8 -ErrorAction Stop
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "ZIP_NAME=ShortCutTool-v$version.zip" -Encoding utf8 -ErrorAction Stop
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "RELEASE_TAG=v$version" -Encoding utf8 -ErrorAction Stop
+
+          Write-Host "Successfully wrote outputs to GITHUB_OUTPUT"
           Write-Host "Package hash: $hash"
           Write-Host "ZIP file: $zipPath"
           Write-Host "Build completed successfully"
@@ -192,8 +214,16 @@ jobs:
         id: get_version
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+
           $version = "${{ github.event.release.tag_name }}" -replace '^v', ''
-          Add-Content -Path $env:GITHUB_OUTPUT -Value "VERSION=$version"
+
+          # Ensure GITHUB_OUTPUT file exists
+          if (-not (Test-Path $env:GITHUB_OUTPUT)) {
+            "" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+          }
+
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "VERSION=$version" -Encoding utf8 -ErrorAction Stop
           Write-Host "Version: $version"
           echo "Version: $version"
 

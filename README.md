@@ -21,19 +21,19 @@ These combinations are rarely used by other applications, making them perfect fo
 
 ## Latest Release
 
-**Version**: v1.0.3-20260529-210140
+**Version**: v1.0.3-20260529-214349
 
-**Download**: [ShortCutTool-v1.0.3-20260529-210140.zip](https://github.com/Qisuk/ShortCutTool/releases/download/v1.0.3-20260529-210140/ShortCutTool-v1.0.3-20260529-210140.zip)
+**Download**: [ShortCutTool-v1.0.3-20260529-214349.zip](https://github.com/Qisuk/ShortCutTool/releases/download/v1.0.3-20260529-214349/ShortCutTool-v1.0.3-20260529-214349.zip)
 
 **SHA256 Checksum**:
 ```
-C622EA39FFEC8CA0B21CC25431B75843B81E576AE062EF346070F7B1035CECD0
+40E522FC8010B913EB3D72FCA3225BB6FDCB96A9BF57A7EDD03FC70AE09BB951
 ```
 
 ### Verify Download
 Use PowerShell:
 ```powershell
-Get-FileHash .\ShortCutTool-v1.0.3-20260529-210140.zip -Algorithm SHA256
+Get-FileHash .\ShortCutTool-v1.0.3-20260529-214349.zip -Algorithm SHA256
 ```
 ## Quick Start
 
@@ -201,6 +201,7 @@ MIT License - see LICENSE file for details
 ---
 
 **Tip**: Start with a few shortcuts, get comfortable with Meh key combinations, then add more as needed!
+
 
 
 

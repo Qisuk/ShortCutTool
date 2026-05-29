@@ -32,7 +32,7 @@ jobs:
         id: version
         shell: pwsh
         run: |
-           $ErrorActionPreference = 'Stop'
+          $ErrorActionPreference = 'Stop'
 
           # If this run was triggered by a tag push, use that tag.
           if ("${{ github.ref }}" -like "refs/tags/v*") {
@@ -147,14 +147,14 @@ jobs:
           prerelease: false
 
       - name: Update README with Release Info
-       if: startsWith(github.ref, 'refs/tags/v')
-       shell: pwsh
-       run: |
-         $ErrorActionPreference = 'Stop'
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
 
-         $version = "${{ steps.version.outputs.VERSION }}"
-         $hash = "${{ steps.build.outputs.PACKAGE_HASH }}"
-         $downloadUrl = "https://github.com/${{ github.repository }}/releases/download/v$version/ShortCutTool-v$version.zip"
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $hash = "${{ steps.build.outputs.PACKAGE_HASH }}"
+          $downloadUrl = "https://github.com/${{ github.repository }}/releases/download/v$version/ShortCutTool-v$version.zip"
 
                    $readme = Get-Content README.md -Raw
 

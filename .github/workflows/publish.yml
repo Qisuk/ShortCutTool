@@ -102,29 +102,7 @@ jobs:
           $readme = Get-Content README.md -Raw
 
           # Create new download section
-          $downloadSection = @"
-## Latest Release
-
-**Version**: v$version
-
-**Download**: [ShortCutTool-v$version.zip]($downloadUrl)
-
-**SHA256 Checksum**:
-\`\`\`
-$hash
-\`\`\`
-
-### Verify Download
-To verify the integrity of your download, calculate the SHA256 hash of the downloaded file and compare it to the checksum above.
-
-**PowerShell:**
-\`\`\`powershell
-(Get-FileHash 'ShortCutTool-v$version.zip' -Algorithm SHA256).Hash
-\`\`\`
-
----
-
-"@
+          $downloadSection = "## Latest Release`n`n**Version**: v$version`n`n**Download**: [ShortCutTool-v$version.zip]($downloadUrl)`n`n**SHA256 Checksum**:`n\`\`\`n$hash`n\`\`\``n`n### Verify Download`nTo verify the integrity of your download, calculate the SHA256 hash of the downloaded file and compare it to the checksum above.`n`n**PowerShell:**`n\`\`\`powershell`n(Get-FileHash 'ShortCutTool-v$version.zip' -Algorithm SHA256).Hash`n\`\`\``n`n---`n`n"
 
           # Insert after Quick Start section if it exists, otherwise after title
           if ($readme -match '## Quick Start') {

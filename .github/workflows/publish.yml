@@ -1,11 +1,161 @@
-name: Publish
+name: Publish Release
 on:
-  release:
-    types: [published]
+  push:
+    branches:
+      - master
+    tags:
+      - 'v*'
 
 jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout ShortCutTool repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Get version
+        id: version
+        shell: pwsh
+        run: |
+          # Try to get version from git tag
+          $tag = git describe --tags --exact-match 2>$null
+          if ($tag) {
+            $version = $tag -replace '^v', ''
+          } else {
+            # Fallback: extract from project file
+            $xml = [xml](Get-Content ShortCutTool.csproj)
+            $version = $xml.Project.PropertyGroup.Version
+            if (-not $version) {
+              $version = "0.0.1"
+            }
+            # Add timestamp for non-tag builds
+            $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+            $version = "$version-$timestamp"
+          }
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          echo "Version: $version"
+
+      - name: Build and publish release
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          dotnet publish ShortCutTool.csproj -c Release -o "release/publish" --self-contained false -r win-x64
+
+          # Create ZIP
+          $zipPath = "release/ShortCutTool-v$version.zip"
+          Compress-Archive -Path "release/publish/*" -DestinationPath $zipPath -Force
+
+          # Calculate SHA256
+          $hash = (Get-FileHash $zipPath -Algorithm SHA256).Hash
+          echo "PACKAGE_HASH=$hash" >> $env:GITHUB_OUTPUT
+          echo "ZIP_PATH=$zipPath" >> $env:GITHUB_OUTPUT
+          echo "ZIP_NAME=ShortCutTool-v$version.zip" >> $env:GITHUB_OUTPUT
+          echo "Package hash: $hash"
+          echo "ZIP file: $zipPath"
+        id: build
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          release_name: Release v${{ steps.version.outputs.VERSION }}
+          body: |
+            ## Release v${{ steps.version.outputs.VERSION }}
+
+            ### SHA256 Checksum
+            ```
+            ${{ steps.build.outputs.PACKAGE_HASH }}
+            ```
+
+            ### Downloads
+            - **ShortCutTool-v${{ steps.version.outputs.VERSION }}.zip** - See Assets below
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.build.outputs.ZIP_PATH }}
+          asset_name: ${{ steps.build.outputs.ZIP_NAME }}
+          asset_content_type: application/zip
+
+      - name: Update README with Release Info
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $hash = "${{ steps.build.outputs.PACKAGE_HASH }}"
+          $downloadUrl = "https://github.com/${{ github.repository }}/releases/download/v$version/ShortCutTool-v$version.zip"
+
+          # Read current README
+          $readme = Get-Content README.md -Raw
+
+          # Create new download section
+          $downloadSection = @"
+## Latest Release
+
+**Version**: v$version
+
+**Download**: [ShortCutTool-v$version.zip]($downloadUrl)
+
+**SHA256 Checksum**:
+\`\`\`
+$hash
+\`\`\`
+
+### Verify Download
+To verify the integrity of your download, calculate the SHA256 hash of the downloaded file and compare it to the checksum above.
+
+**PowerShell:**
+\`\`\`powershell
+(Get-FileHash 'ShortCutTool-v$version.zip' -Algorithm SHA256).Hash
+\`\`\`
+
+---
+
+"@
+
+          # Insert after Quick Start section if it exists, otherwise after title
+          if ($readme -match '## Quick Start') {
+            $readme = $readme -replace '(## Quick Start)', ($downloadSection + '$1')
+          } else {
+            $readme = $readme -replace '(# ShortCutTool.*?\n)', ('$1' + "`n" + $downloadSection)
+          }
+
+          # Write updated README
+          Set-Content README.md -Value $readme -Encoding UTF8
+
+          echo "README updated with version $version"
+
+      - name: Commit and Push README Update
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if (git diff --quiet README.md) {
+            echo "No changes to README"
+          } else {
+            git add README.md
+            git commit -m "chore: update README with v${{ steps.version.outputs.VERSION }} release info"
+            git push
+          }
+
   publish-to-winget:
     runs-on: windows-latest
+    needs: build-and-release
+    if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Checkout ShortCutTool repository
@@ -24,47 +174,4 @@ jobs:
           echo "VERSION=$version" >> $env:GITHUB_OUTPUT
           echo "Version: $version"
 
-      - name: Build and publish release
-        shell: pwsh
-        run: |
-          $version = "${{ steps.get_version.outputs.VERSION }}"
-          dotnet publish ShortCutTool.csproj -c Release -o "release/publish" --self-contained false -r win-x64
-
-          # Create ZIP
-          $zipPath = "release/ShortCutTool-v$version.zip"
-          Compress-Archive -Path "release/publish/*" -DestinationPath $zipPath -Force
-
-          # Calculate SHA256
-          $hash = (Get-FileHash $zipPath -Algorithm SHA256).Hash
-          echo "PACKAGE_HASH=$hash" >> $env:GITHUB_OUTPUT
-          echo "ZIP_PATH=$zipPath" >> $env:GITHUB_OUTPUT
-          echo "Package hash: $hash"
-        id: build
-
-      # - name: Update manifest files with SHA256
-      #   shell: pwsh
-      #   run: |
-      #     $hash = "${{ steps.build.outputs.PACKAGE_HASH }}"
-      #     $version = "${{ steps.get_version.outputs.VERSION }}"
-      #     $downloadUrl = "https://github.com/${{ github.repository }}/releases/download/v$version/ShortCutTool-v$version.zip"
-
-      #     # Update installer manifest
-      #     $installerPath = ".winget/Qisuk.ShortCutTool.installer.yaml"
-      #     (Get-Content $installerPath) -replace 'INSERT_SHA256_HERE', $hash -replace 'INSERT_DOWNLOAD_URL_HERE', $downloadUrl | Set-Content $installerPath
-
-      #     # Update version in main manifest
-      #     $mainPath = ".winget/Qisuk.ShortCutTool.yaml"
-      #     (Get-Content $mainPath) -replace 'PackageVersion: .*', "PackageVersion: $version" | Set-Content $mainPath
-
-      #     # Update version in locale manifest
-      #     $localePath = ".winget/Qisuk.ShortCutTool.locale.en-US.yaml"
-      #     (Get-Content $localePath) -replace 'PackageVersion: .*', "PackageVersion: $version" | Set-Content $localePath
-
-      # - name: Submit to Winget
-      #   uses: vedantmgoyal2009/winget-releaser@v2
-      #   with:
-      #     identifier: Qisuk.ShortCutTool
-      #     version: ${{ steps.get_version.outputs.VERSION }}
-      #     installers-regex: '\.zip$'
-      #     token: ${{ secrets.WINGET_TOKEN }}
-      #     fork-user: ${{ github.repository_owner }}
+      # Winget submission steps would go here (currently commented out)

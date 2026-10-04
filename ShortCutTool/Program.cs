@@ -5,29 +5,69 @@ namespace ShortCutTool;
 
 class Program
 {
+    /// <summary>
+    /// Name of the single-instance mutex. The installer's AppMutex setting uses the same
+    /// name to detect a running copy before upgrading or uninstalling.
+    /// </summary>
+    public const string SingleInstanceMutexName = "ShortCutTool.SingleInstance";
+
     [STAThread]
     static void Main()
     {
         ApplicationConfiguration.Initialize();
 
-        const string configFile = "shortcuts.json";
+        Application.ThreadException += (s, e) => Log.Error("Unhandled UI thread exception", e.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (s, e) => Log.Error("Unhandled exception", e.ExceptionObject as Exception);
 
-        if (!File.Exists(configFile))
+        using var mutex = new Mutex(initiallyOwned: false, SingleInstanceMutexName);
+        if (!TryAcquire(mutex))
         {
-            CreateDefaultConfig(configFile);
+            Log.Info("Another instance is already running; exiting");
+            MessageBox.Show(
+                "ShortCut Tool is already running. Look for its icon in the system tray.",
+                "ShortCut Tool",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+            return;
         }
 
-        var configJson = File.ReadAllText(configFile);
+        try
+        {
+            Run();
+        }
+        finally
+        {
+            mutex.ReleaseMutex();
+        }
+    }
+
+    private static void Run()
+    {
+        Log.Info($"Starting ShortCut Tool {Application.ProductVersion} from {Environment.ProcessPath}");
+
+        bool isFirstRun;
         AppShortcutConfig? config;
 
         try
         {
-            config = JsonSerializer.Deserialize<AppShortcutConfig>(configJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            isFirstRun = ConfigStore.EnsureExists();
+            config = ConfigStore.Load();
         }
         catch (JsonException ex)
         {
+            Log.Error("Configuration file is not valid JSON", ex);
             MessageBox.Show(
-                $"Invalid JSON configuration file:\n\n{ex.Message}",
+                $"Invalid JSON configuration file:\n{AppPaths.ConfigFile}\n\n{ex.Message}",
+                "ShortCut Tool - Configuration Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+            return;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Error("Could not read or create the configuration file", ex);
+            MessageBox.Show(
+                $"Could not read or create the configuration file:\n{AppPaths.ConfigFile}\n\n{ex.Message}",
                 "ShortCut Tool - Configuration Error",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
@@ -38,73 +78,60 @@ class Program
         var validationResult = ConfigValidator.ValidateConfig(config);
         if (!validationResult.IsValid)
         {
+            Log.Error($"Configuration validation failed: {validationResult.ErrorMessage}");
             MessageBox.Show(
-                $"Configuration validation failed:\n\n{validationResult.ErrorMessage}\n\nPlease fix the configuration file and restart.",
+                $"Configuration validation failed:\n\n{validationResult.ErrorMessage}\n\nPlease fix the configuration file and restart:\n{AppPaths.ConfigFile}",
                 "ShortCut Tool - Validation Error",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
             return;
         }
 
-        if (config == null || config.Shortcuts.Count == 0)
-        {
-            MessageBox.Show(
-                "No shortcuts configured. Please edit the configuration file.",
-                "ShortCut Tool",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning);
-            return;
-        }
-
-        // Sanitize and expand environment variables in application paths
-        foreach (var shortcut in config.Shortcuts)
-        {
-            shortcut.ApplicationPath = ConfigValidator.SanitizePath(shortcut.ApplicationPath);
-            if (!string.IsNullOrEmpty(shortcut.WorkingDirectory))
-            {
-                shortcut.WorkingDirectory = ConfigValidator.SanitizePath(shortcut.WorkingDirectory);
-            }
-        }
+        StartupRegistration.RefreshPathIfEnabled();
 
         using var hookService = new KeyboardHookService();
 
-        foreach (var shortcut in config.Shortcuts)
+        // Register expanded copies so the saved configuration keeps its environment
+        // variables (e.g. %USERNAME%) and stays portable between machines.
+        foreach (var shortcut in config!.Shortcuts)
         {
-            hookService.RegisterShortcut(shortcut);
+            hookService.RegisterShortcut(ExpandPaths(shortcut));
         }
 
-        var trayApp = new TrayApplicationContext(config.Shortcuts);
+        Log.Info($"Registered {config.Shortcuts.Count} shortcut(s)");
+
+        var openManagerOnStart = isFirstRun || config.Shortcuts.Count == 0;
+        var trayApp = new TrayApplicationContext(config.Shortcuts, openManagerOnStart);
         Application.Run(trayApp);
+
+        Log.Info("Exiting");
     }
 
-    private static void CreateDefaultConfig(string configFile)
+    /// <summary>
+    /// Waits briefly for the mutex so that "Save &amp; Restart" works: the new process starts
+    /// while the old one is still shutting down.
+    /// </summary>
+    private static bool TryAcquire(Mutex mutex)
     {
-        MessageBox.Show(
-            $"Configuration file '{configFile}' not found. Creating default configuration file.",
-            "ShortCut Tool",
-            MessageBoxButtons.OK,
-            MessageBoxIcon.Information);
-
-        var defaultConfig = new AppShortcutConfig
+        try
         {
-            Shortcuts = new List<ShortcutMapping>
-                {
-                    new()
-                    {
-                        Key = "C",
-                        UseMeh = true,
-                        ApplicationPath = "C:\\Users\\YourUsername\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
-                    },
-                    new()
-                    {
-                        Key = "V",
-                        UseMeh = true,
-                        ApplicationPath = "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\devenv.exe"
-                    }
-                }
-        };
-
-        var json = JsonSerializer.Serialize(defaultConfig, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(configFile, json);
+            return mutex.WaitOne(TimeSpan.FromSeconds(5));
+        }
+        catch (AbandonedMutexException)
+        {
+            // The previous owner exited without releasing it; we own it now.
+            return true;
+        }
     }
+
+    private static ShortcutMapping ExpandPaths(ShortcutMapping shortcut) => new()
+    {
+        Key = shortcut.Key,
+        UseMeh = shortcut.UseMeh,
+        UseHyperForReverse = shortcut.UseHyperForReverse,
+        ApplicationPath = ConfigValidator.SanitizePath(shortcut.ApplicationPath),
+        WorkingDirectory = string.IsNullOrEmpty(shortcut.WorkingDirectory)
+            ? shortcut.WorkingDirectory
+            : ConfigValidator.SanitizePath(shortcut.WorkingDirectory)
+    };
 }

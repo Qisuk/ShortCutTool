@@ -26,9 +26,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="shortcuts.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Update="Assets\Icons\app.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

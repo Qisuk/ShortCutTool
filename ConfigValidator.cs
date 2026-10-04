@@ -26,11 +26,6 @@ public static class ConfigValidator
             return ValidationResult.Failure("Shortcuts list cannot be null");
         }
 
-        if (config.Shortcuts.Count == 0)
-        {
-            return ValidationResult.Failure("At least one shortcut must be configured");
-        }
-
         if (config.Shortcuts.Count > MaxShortcutsCount)
         {
             return ValidationResult.Failure($"Too many shortcuts (max: {MaxShortcutsCount})");

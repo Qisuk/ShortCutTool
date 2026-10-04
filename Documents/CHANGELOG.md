@@ -2,6 +2,19 @@
 
 All notable changes to ShortCutTool will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- **Configuration moved to `%APPDATA%\ShortCutTool\shortcuts.json`** so it survives upgrades and no longer depends on the folder the app was started from. An existing `shortcuts.json` next to the executable is migrated automatically on first start.
+- **First run opens the Shortcut Manager** with an empty list instead of exiting with an error; an empty configuration is now valid.
+- Saving from the Shortcut Manager keeps environment variables such as `%USERNAME%` in paths instead of writing expanded paths.
+- The repository's sample configuration is now `shortcuts.example.json` and is no longer copied into the build output.
+
+### Added
+- **Single instance** - starting a second copy shows a reminder instead of installing a second keyboard hook.
+- **Start with Windows** tray option (per-user `HKCU\...\Run` entry).
+- **Log file** at `%LOCALAPPDATA%\ShortCutTool\logs\shortcuttool.log`, plus "Open Config Folder" and "Open Log Folder" tray items.
+
 ## [1.0.0] - 2026
 
 ### Added

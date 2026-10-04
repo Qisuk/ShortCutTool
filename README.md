@@ -19,22 +19,6 @@ A Windows keyboard shortcut manager that uses **Meh** (Ctrl+Alt+Shift) and **Hyp
 
 These combinations are rarely used by other applications, making them perfect for global shortcuts!
 
-## Latest Release
-
-**Version**: v1.0.3-20260529-210140
-
-**Download**: [ShortCutTool-v1.0.3-20260529-210140.zip](https://github.com/Qisuk/ShortCutTool/releases/download/v1.0.3-20260529-210140/ShortCutTool-v1.0.3-20260529-210140.zip)
-
-**SHA256 Checksum**:
-```
-C622EA39FFEC8CA0B21CC25431B75843B81E576AE062EF346070F7B1035CECD0
-```
-
-### Verify Download
-Use PowerShell:
-```powershell
-Get-FileHash .\ShortCutTool-v1.0.3-20260529-210140.zip -Algorithm SHA256
-```
 ## Quick Start
 
 ### Installation
@@ -46,14 +30,28 @@ winget install Qisuk.ShortCutTool
 *Note: Pending approval in Windows Package Manager repository*
 
 #### Option 2: Download Release
-1. Download the latest release from [GitHub Releases](https://github.com/Qisuk/ShortCutTool/releases)
-2. Extract the ZIP file
-3. Run `ShortCutTool.exe`
+1. Download `ShortCutTool-<version>-win-x64.zip` from the [latest release](https://github.com/Qisuk/ShortCutTool/releases/latest)
+2. Optionally verify it against the SHA256 shown in the release notes (also in `SHA256SUMS.txt`):
+   ```powershell
+   Get-FileHash .\ShortCutTool-*-win-x64.zip -Algorithm SHA256
+   ```
+3. Extract the ZIP file and run `ShortCutTool.exe`
 
 #### Option 3: Build from Source
 ```powershell
-dotnet publish -c Release -o ./publish
+dotnet test --solution ShortCutTool.slnx
+dotnet publish ShortCutTool.csproj -c Release -r win-x64 --self-contained false -o ./publish
 ```
+
+## Releasing
+
+1. Set `<Version>` in `ShortCutTool.csproj` (e.g. `1.1.0`) and add a section to `Documents/CHANGELOG.md`
+2. Merge to `master`, then tag and push:
+   ```powershell
+   git tag v1.1.0
+   git push origin v1.1.0
+   ```
+3. The **Release** workflow checks the tag matches the csproj version, runs the tests, and publishes the GitHub release with the ZIP and its SHA256. Tags with a suffix (`v1.2.0-beta.1`) become pre-releases.
 
 ### First Run
 

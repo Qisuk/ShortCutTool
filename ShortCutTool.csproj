@@ -11,9 +11,9 @@
     <AssemblyName>ShortCutTool</AssemblyName>
     <Product>ShortCut Tool</Product>
     <Copyright>Copyright © 2026</Copyright>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
-    <Version>1.0.3</Version>
+    <!-- Single source of truth for the version. AssemblyVersion and FileVersion are derived
+         from it, and the release workflow refuses to publish a tag that doesn't match. -->
+    <Version>1.1.0</Version>
     <Description>Keyboard shortcut manager with Meh/Hyper key support for launching and cycling through application windows</Description>
     <Authors>ChrisMoir</Authors>
     <RepositoryUrl>https://github.com/Qisuk/ShortCutTool</RepositoryUrl>
@@ -30,7 +30,14 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
-    <None Include=".github\workflows\publish.yml" />
+    <None Include=".github\workflows\*.yml" />
+  </ItemGroup>
+
+  <!-- The test project lives under this folder; keep its sources out of the app build. -->
+  <ItemGroup>
+    <Compile Remove="tests\**" />
+    <EmbeddedResource Remove="tests\**" />
+    <None Remove="tests\**" />
   </ItemGroup>
 
 </Project>

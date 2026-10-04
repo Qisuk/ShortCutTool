@@ -9,6 +9,7 @@ All notable changes to ShortCutTool will be documented in this file.
 - **First run opens the Shortcut Manager** with an empty list instead of exiting with an error; an empty configuration is now valid.
 - Saving from the Shortcut Manager keeps environment variables such as `%USERNAME%` in paths instead of writing expanded paths.
 - The repository's sample configuration is now `shortcuts.example.json` and is no longer copied into the build output.
+- Releases are built only from version tags (`vX.Y.Z`) that match the project version; pushes to `master` no longer create timestamped releases. The release ZIP is now named `ShortCutTool-<version>-win-x64.zip`.
 
 ### Added
 - **Single instance** - starting a second copy shows a reminder instead of installing a second keyboard hook.

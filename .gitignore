@@ -371,3 +371,6 @@ publish/
 # Winget package repository (should be cloned outside project)
 winget-pkgs/
 
+
+# Release workflow output
+artifacts/

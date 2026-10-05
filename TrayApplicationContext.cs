@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Win32;
 
 namespace ShortCutTool;
 
@@ -32,6 +33,10 @@ public class TrayApplicationContext : ApplicationContext
         };
 
         _trayIcon.DoubleClick += OnTrayIconDoubleClick;
+
+        // Exit cleanly on sign-out, and when an installer asks running apps to close
+        // (Restart Manager sends the same session-end messages).
+        SystemEvents.SessionEnded += OnSessionEnded;
 
         if (openManagerOnStart)
         {
@@ -752,10 +757,18 @@ public class TrayApplicationContext : ApplicationContext
         Application.Exit();
     }
 
+    private void OnSessionEnded(object? sender, SessionEndedEventArgs e)
+    {
+        Log.Info($"Session ending ({e.Reason}); exiting");
+        _trayIcon.Visible = false;
+        Application.Exit();
+    }
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
+            SystemEvents.SessionEnded -= OnSessionEnded;
             _trayIcon?.Dispose();
         }
         base.Dispose(disposing);

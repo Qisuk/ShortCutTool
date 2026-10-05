@@ -40,20 +40,16 @@ jobs:
       - name: Test
         run: dotnet test --solution ShortCutTool.slnx -c Release
 
-      - name: Publish
-        run: dotnet publish ShortCutTool.csproj -c Release -r win-x64 --self-contained false -o artifacts/publish
-
-      - name: Package
-        id: package
+      - name: Install Inno Setup if missing
         shell: pwsh
         run: |
-          $ErrorActionPreference = 'Stop'
-          $version = '${{ steps.version.outputs.VERSION }}'
-          $zip = "artifacts/ShortCutTool-$version-win-x64.zip"
-          Compress-Archive -Path artifacts/publish/* -DestinationPath $zip
-          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash
-          "$hash  $(Split-Path $zip -Leaf)" | Set-Content artifacts/SHA256SUMS.txt -Encoding ascii
-          "SHA256=$hash" >> $env:GITHUB_OUTPUT
+          $iscc = Get-ChildItem "${env:ProgramFiles(x86)}", $env:ProgramFiles -Filter 'Inno Setup*' -Directory -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path (Join-Path $_.FullName 'ISCC.exe') }
+          if (-not $iscc) { choco install innosetup -y --no-progress }
+
+      - name: Build installer and ZIP
+        shell: pwsh
+        run: ./installer/Build-Installer.ps1 -Version '${{ steps.version.outputs.VERSION }}'
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
@@ -62,10 +58,11 @@ jobs:
           prerelease: ${{ steps.version.outputs.PRERELEASE }}
           generate_release_notes: true
           body: |
-            Requires the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (x64).
+            **Install:** run `ShortCutTool-${{ steps.version.outputs.VERSION }}-win-x64-setup.exe` (no admin rights needed), or extract the ZIP for a portable copy.
 
-            **SHA256** (`ShortCutTool-${{ steps.version.outputs.VERSION }}-win-x64.zip`): `${{ steps.package.outputs.SHA256 }}`
+            Requires the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (x64). SHA256 checksums are in `SHA256SUMS.txt`.
           files: |
+            artifacts/ShortCutTool-${{ steps.version.outputs.VERSION }}-win-x64-setup.exe
             artifacts/ShortCutTool-${{ steps.version.outputs.VERSION }}-win-x64.zip
             artifacts/SHA256SUMS.txt
           fail_on_unmatched_files: true

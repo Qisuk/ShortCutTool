@@ -28,3 +28,24 @@ jobs:
 
       - name: Test
         run: dotnet test --solution ShortCutTool.slnx -c Release --no-build
+
+      - name: Install Inno Setup if missing
+        shell: pwsh
+        run: |
+          $iscc = Get-ChildItem "${env:ProgramFiles(x86)}", $env:ProgramFiles -Filter 'Inno Setup*' -Directory -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path (Join-Path $_.FullName 'ISCC.exe') }
+          if (-not $iscc) { choco install innosetup -y --no-progress }
+
+      - name: Build installer and ZIP
+        shell: pwsh
+        run: ./installer/Build-Installer.ps1
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: ShortCutTool-installer
+          path: |
+            artifacts/*-setup.exe
+            artifacts/*.zip
+            artifacts/SHA256SUMS.txt
+          retention-days: 14

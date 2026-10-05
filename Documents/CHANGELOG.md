@@ -12,6 +12,8 @@ All notable changes to ShortCutTool will be documented in this file.
 - Releases are built only from version tags (`vX.Y.Z`) that match the project version; pushes to `master` no longer create timestamped releases. The release ZIP is now named `ShortCutTool-<version>-win-x64.zip`.
 
 ### Added
+- **Installer** (`ShortCutTool-<version>-win-x64-setup.exe`, Inno Setup): per-user install with no admin rights, Start Menu entry, optional start-with-Windows, closes and restarts the running app during upgrades, and removes the startup entry on uninstall.
+- The app exits cleanly when Windows signs out or an installer asks it to close.
 - **Single instance** - starting a second copy shows a reminder instead of installing a second keyboard hook.
 - **Start with Windows** tray option (per-user `HKCU\...\Run` entry).
 - **Log file** at `%LOCALAPPDATA%\ShortCutTool\logs\shortcuttool.log`, plus "Open Config Folder" and "Open Log Folder" tray items.

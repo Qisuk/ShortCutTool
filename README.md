@@ -198,6 +198,8 @@ This app runs as a **user-level tray application** to overcome these limitations
    ```
 3. The **Release** workflow checks the tag matches the csproj version, runs the tests, builds the installer and ZIP with `installer\Build-Installer.ps1`, and publishes the GitHub release with `SHA256SUMS.txt`. Tags with a suffix (`v1.2.0-beta.1`) become pre-releases.
 
+Publishing to WinGet (first submission and the automatic updates after it) is described in [Documents/WINGET.md](Documents/WINGET.md).
+
 Every pull request also builds the installer; download it from the CI run's **ShortCutTool-installer** artifact to test before releasing.
 
 ## Contributing

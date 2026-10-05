@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Build
+        run: dotnet build ShortCutTool.slnx -c Release
+
+      - name: Test
+        run: dotnet test --solution ShortCutTool.slnx -c Release --no-build
+
+      - name: Install Inno Setup if missing
+        shell: pwsh
+        run: |
+          $iscc = Get-ChildItem "${env:ProgramFiles(x86)}", $env:ProgramFiles -Filter 'Inno Setup*' -Directory -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path (Join-Path $_.FullName 'ISCC.exe') }
+          if (-not $iscc) { choco install innosetup -y --no-progress }
+
+      - name: Build installer and ZIP
+        shell: pwsh
+        run: ./installer/Build-Installer.ps1
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: ShortCutTool-installer
+          path: |
+            artifacts/*-setup.exe
+            artifacts/*.zip
+            artifacts/SHA256SUMS.txt
+          retention-days: 14

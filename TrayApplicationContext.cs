@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Win32;
 
 namespace ShortCutTool;
 
@@ -18,7 +19,8 @@ public class TrayApplicationContext : ApplicationContext
     /// Initializes a new instance of the TrayApplicationContext class.
     /// </summary>
     /// <param name="shortcuts">The list of configured shortcuts to display</param>
-    public TrayApplicationContext(List<ShortcutMapping> shortcuts)
+    /// <param name="openManagerOnStart">Open the Shortcut Manager once the message loop starts (first run / nothing configured)</param>
+    public TrayApplicationContext(List<ShortcutMapping> shortcuts, bool openManagerOnStart = false)
     {
         _shortcuts = shortcuts;
 
@@ -31,6 +33,23 @@ public class TrayApplicationContext : ApplicationContext
         };
 
         _trayIcon.DoubleClick += OnTrayIconDoubleClick;
+
+        // Exit cleanly on sign-out, and when an installer asks running apps to close
+        // (Restart Manager sends the same session-end messages).
+        SystemEvents.SessionEnded += OnSessionEnded;
+
+        if (openManagerOnStart)
+        {
+            // Defer until Application.Run has started the message loop.
+            var timer = new System.Windows.Forms.Timer { Interval = 1 };
+            timer.Tick += (s, e) =>
+            {
+                timer.Stop();
+                timer.Dispose();
+                ShowShortcutInformation();
+            };
+            timer.Start();
+        }
     }
 
     private Icon LoadApplicationIcon()
@@ -85,6 +104,18 @@ public class TrayApplicationContext : ApplicationContext
         var showShortcutsItem = new ToolStripMenuItem("Show Shortcuts...", null, OnShowShortcuts);
         menu.Items.Add(showShortcutsItem);
 
+        var startWithWindowsItem = new ToolStripMenuItem("Start with Windows", null, OnToggleStartWithWindows)
+        {
+            Checked = StartupRegistration.IsEnabled
+        };
+        menu.Items.Add(startWithWindowsItem);
+
+        var openConfigFolderItem = new ToolStripMenuItem("Open Config Folder", null, (s, e) => OpenFolder(AppPaths.ConfigDirectory));
+        menu.Items.Add(openConfigFolderItem);
+
+        var openLogFolderItem = new ToolStripMenuItem("Open Log Folder", null, (s, e) => OpenFolder(AppPaths.LogDirectory));
+        menu.Items.Add(openLogFolderItem);
+
         var aboutItem = new ToolStripMenuItem("About...", null, OnAbout);
         menu.Items.Add(aboutItem);
 
@@ -104,6 +135,48 @@ public class TrayApplicationContext : ApplicationContext
     private void OnShowShortcuts(object? sender, EventArgs e)
     {
         ShowShortcutInformation();
+    }
+
+    private void OnToggleStartWithWindows(object? sender, EventArgs e)
+    {
+        if (sender is not ToolStripMenuItem item) return;
+
+        try
+        {
+            if (item.Checked)
+            {
+                StartupRegistration.Disable();
+            }
+            else
+            {
+                StartupRegistration.Enable();
+            }
+            item.Checked = StartupRegistration.IsEnabled;
+            Log.Info($"Start with Windows set to {item.Checked}");
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not change the Start with Windows setting", ex);
+            MessageBox.Show($"Could not change the startup setting: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private static void OpenFolder(string folder)
+    {
+        try
+        {
+            Directory.CreateDirectory(folder);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = folder,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Could not open folder {folder}", ex);
+            MessageBox.Show($"Could not open {folder}: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
     }
 
     private void OnAbout(object? sender, EventArgs e)
@@ -639,9 +712,8 @@ public class TrayApplicationContext : ApplicationContext
     {
         try
         {
-            var config = new AppShortcutConfig { Shortcuts = _shortcuts };
-            var json = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText("shortcuts.json", json);
+            ConfigStore.Save(new AppShortcutConfig { Shortcuts = _shortcuts });
+            Log.Info($"Saved {_shortcuts.Count} shortcut(s) to {AppPaths.ConfigFile}");
 
             var result = MessageBox.Show(
                 "Configuration saved. The application needs to restart to apply changes.\n\nRestart now?",
@@ -657,6 +729,7 @@ public class TrayApplicationContext : ApplicationContext
         }
         catch (Exception ex)
         {
+            Log.Error("Error saving configuration", ex);
             MessageBox.Show($"Error saving configuration: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
@@ -684,10 +757,18 @@ public class TrayApplicationContext : ApplicationContext
         Application.Exit();
     }
 
+    private void OnSessionEnded(object? sender, SessionEndedEventArgs e)
+    {
+        Log.Info($"Session ending ({e.Reason}); exiting");
+        _trayIcon.Visible = false;
+        Application.Exit();
+    }
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
+            SystemEvents.SessionEnded -= OnSessionEnded;
             _trayIcon?.Dispose();
         }
         base.Dispose(disposing);

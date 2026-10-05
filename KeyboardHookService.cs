@@ -204,7 +204,7 @@ public class KeyboardHookService : IDisposable
                     catch (Exception popupEx)
                     {
                         // Log popup errors but don't interrupt cycling - popup is non-critical UI feedback
-                        System.Diagnostics.Debug.WriteLine($"Warning: Failed to display cycle popup: {popupEx.Message}");
+                        Log.Warn("Failed to display cycle popup", popupEx);
                     }
                 });
             }
@@ -212,8 +212,8 @@ public class KeyboardHookService : IDisposable
         catch (Exception ex)
         {
             // Log and display errors in shortcut handling
-            System.Diagnostics.Debug.WriteLine($"Error handling shortcut '{key}': {ex.Message}\n{ex.StackTrace}");
-            MessageBox.Show($"Error handling shortcut: {ex.Message}\n\n{ex.StackTrace}", "ShortCutTool Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Log.Error($"Error handling shortcut '{key}'", ex);
+            MessageBox.Show($"Error handling shortcut: {ex.Message}\n\nDetails were written to the log:\n{AppPaths.LogDirectory}", "ShortCutTool Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 

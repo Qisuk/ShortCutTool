@@ -19,22 +19,6 @@ A Windows keyboard shortcut manager that uses **Meh** (Ctrl+Alt+Shift) and **Hyp
 
 These combinations are rarely used by other applications, making them perfect for global shortcuts!
 
-## Latest Release
-
-**Version**: v1.0.3-20260529-214349
-
-**Download**: [ShortCutTool-v1.0.3-20260529-214349.zip](https://github.com/Qisuk/ShortCutTool/releases/download/v1.0.3-20260529-214349/ShortCutTool-v1.0.3-20260529-214349.zip)
-
-**SHA256 Checksum**:
-```
-40E522FC8010B913EB3D72FCA3225BB6FDCB96A9BF57A7EDD03FC70AE09BB951
-```
-
-### Verify Download
-Use PowerShell:
-```powershell
-Get-FileHash .\ShortCutTool-v1.0.3-20260529-214349.zip -Algorithm SHA256
-```
 ## Quick Start
 
 ### Installation
@@ -45,47 +29,53 @@ winget install Qisuk.ShortCutTool
 ```
 *Note: Pending approval in Windows Package Manager repository*
 
-#### Option 2: Download Release
-1. Download the latest release from [GitHub Releases](https://github.com/Qisuk/ShortCutTool/releases)
-2. Extract the ZIP file
-3. Run `ShortCutTool.exe`
+#### Option 2: Installer
+1. Download `ShortCutTool-<version>-win-x64-setup.exe` from the [latest release](https://github.com/Qisuk/ShortCutTool/releases/latest)
+2. Run it. No admin rights are needed: it installs for the current user to `%LOCALAPPDATA%\Programs\ShortCutTool`, adds a Start Menu entry, and can start ShortCutTool when you sign in.
 
-#### Option 3: Build from Source
+Upgrades close the running app, install, and start it again. Your shortcuts in `%APPDATA%\ShortCutTool` are kept.
+
+#### Option 3: Portable ZIP
+1. Download `ShortCutTool-<version>-win-x64.zip` from the [latest release](https://github.com/Qisuk/ShortCutTool/releases/latest)
+2. Extract it anywhere and run `ShortCutTool.exe`
+
+To verify a download, compare it with `SHA256SUMS.txt` from the same release:
 ```powershell
-dotnet publish -c Release -o ./publish
+Get-FileHash .\ShortCutTool-*-win-x64* -Algorithm SHA256
 ```
+
+#### Option 4: Build from Source
+```powershell
+dotnet test --solution ShortCutTool.slnx
+.\installer\Build-Installer.ps1   # needs Inno Setup: winget install JRSoftware.InnoSetup
+```
+Artifacts (installer, ZIP, `SHA256SUMS.txt`) are written to `.\artifacts`.
 
 ### First Run
 
-1. **Run** `ShortCutTool.exe` - it will appear in your system tray
+1. **Run** `ShortCutTool.exe` - it will appear in your system tray. On first run the Shortcut Manager opens so you can add your first shortcuts.
 
 2. **Configure shortcuts**:
    - Right-click tray icon → "Show Shortcuts..."
-   - Click "Add Shortcut" to add applications
-   - Or edit `shortcuts.json` manually
+   - Click "Add Shortcut" to add applications, then "Save & Restart"
+   - Or edit `shortcuts.json` manually (right-click tray icon → "Open Config Folder")
 
 3. **Use shortcuts**:
    - Press `Meh + Key` to launch or bring forward an application
    - If multiple windows exist, press again to cycle forward
    - Use `Hyper + Key` to cycle backward through windows
 
-## Default Configuration
-
-The included `shortcuts.json` has these defaults (customize to your needs):
-
-| Key | Application | Shortcut |
-|-----|-------------|----------|
-| N | Notepad | Meh+N |
-| X | Excel | Meh+X |
-| C | VS Code | Meh+C |
-| V | Visual Studio | Meh+V |
-| G | Chrome | Meh+G |
-| E | Edge | Meh+E |
-| Q | SQL Server Management Studio | Meh+Q |
-| O | Outlook | Meh+O |
-| T | Teams | Meh+T |
+Only one copy of ShortCutTool runs at a time; starting it again shows a reminder to look in the system tray.
 
 ## Configuration
+
+Shortcuts are stored per user in:
+
+```
+%APPDATA%\ShortCutTool\shortcuts.json
+```
+
+This location survives upgrades and reinstalls. If an older version left a `shortcuts.json` next to `ShortCutTool.exe`, it is copied here automatically the first time the new version starts. [`shortcuts.example.json`](shortcuts.example.json) in this repository has a fuller example.
 
 Edit `shortcuts.json` to customize your shortcuts:
 
@@ -113,7 +103,11 @@ Edit `shortcuts.json` to customize your shortcuts:
 
 ## Installation & Auto-Start
 
-### Option 1: Startup Folder (Easiest)
+### Option 1: Tray Menu (Easiest)
+
+Right-click the tray icon and tick **Start with Windows**. This adds a per-user entry under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`; untick it to remove the entry.
+
+### Option 2: Startup Folder
 
 1. Build/publish the application
 2. Create a shortcut to `ShortCutTool.exe`
@@ -123,7 +117,7 @@ Edit `shortcuts.json` to customize your shortcuts:
    ```
 4. Paste the shortcut into the Startup folder
 
-### Option 2: Task Scheduler (More Control)
+### Option 3: Task Scheduler (More Control)
 
 1. Open Task Scheduler (`Win+R` → `taskschd.msc`)
 2. Create Task (not Basic Task):
@@ -154,7 +148,8 @@ While holding the Meh/Hyper keys and cycling, a popup appears near your system t
 
 ### Shortcuts not working
 - Verify the app is running (check system tray)
-- Ensure `shortcuts.json` is valid JSON
+- Ensure `%APPDATA%\ShortCutTool\shortcuts.json` is valid JSON
+- Check the log: right-click tray icon → "Open Log Folder" (`%LOCALAPPDATA%\ShortCutTool\logs`)
 - Check that application paths exist
 - Try running as administrator if launching elevated apps
 
@@ -181,14 +176,29 @@ This app runs as a **user-level tray application** to overcome these limitations
 
 ## Uninstall
 
-1. Exit the application (right-click tray icon → Exit)
-2. Remove from Startup folder or delete Task Scheduler task
-3. Delete the application files
+**Installed with the installer or WinGet:** use *Settings → Apps → Installed apps → ShortCut Tool → Uninstall*. This stops the app and removes the "Start with Windows" entry. Your shortcuts in `%APPDATA%\ShortCutTool` are kept; delete that folder too for a clean removal.
+
+**Portable copy:**
+1. Untick "Start with Windows" in the tray menu (or remove your Startup folder shortcut / Task Scheduler task)
+2. Exit the application (right-click tray icon → Exit)
+3. Delete the application files, and `%APPDATA%\ShortCutTool` if you want to remove your shortcuts
 
 ## System Requirements
 
 - Windows 10 or later
 - .NET 10 Runtime
+
+## Releasing
+
+1. Set `<Version>` in `ShortCutTool.csproj` (e.g. `1.1.0`) and add a section to `Documents/CHANGELOG.md`
+2. Merge to `master`, then tag and push:
+   ```powershell
+   git tag v1.1.0
+   git push origin v1.1.0
+   ```
+3. The **Release** workflow checks the tag matches the csproj version, runs the tests, builds the installer and ZIP with `installer\Build-Installer.ps1`, and publishes the GitHub release with `SHA256SUMS.txt`. Tags with a suffix (`v1.2.0-beta.1`) become pre-releases.
+
+Every pull request also builds the installer; download it from the CI run's **ShortCutTool-installer** artifact to test before releasing.
 
 ## Contributing
 

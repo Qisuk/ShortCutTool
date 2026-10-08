@@ -15,6 +15,9 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
+      prerelease: ${{ steps.version.outputs.PRERELEASE }}
 
     steps:
       - uses: actions/checkout@v7
@@ -66,3 +69,33 @@ jobs:
             artifacts/ShortCutTool-${{ steps.version.outputs.VERSION }}-win-x64.zip
             artifacts/SHA256SUMS.txt
           fail_on_unmatched_files: true
+
+  # Opens a PR on microsoft/winget-pkgs for each stable release. wingetcreate can only update a
+  # package that already exists there, so this stays off until the first version is accepted.
+  # To enable: add a WINGET_TOKEN secret (classic PAT with public_repo scope) and set the
+  # repository variable WINGET_AUTO_SUBMIT to true. See Documents/WINGET.md.
+  winget:
+    name: Submit to WinGet
+    needs: release
+    if: needs.release.outputs.prerelease == 'false' && vars.WINGET_AUTO_SUBMIT == 'true'
+    runs-on: windows-latest
+    permissions: {}
+
+    steps:
+      - name: Submit update with wingetcreate
+        shell: pwsh
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          VERSION: ${{ needs.release.outputs.version }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $url = "$env:REPO_URL/releases/download/v$env:VERSION/ShortCutTool-$env:VERSION-win-x64-setup.exe"
+          Invoke-WebRequest https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe -UseBasicParsing
+          ./wingetcreate.exe update Qisuk.ShortCutTool `
+            --version $env:VERSION `
+            --urls $url `
+            --release-notes-url "$env:REPO_URL/releases/tag/v$env:VERSION" `
+            --submit --no-open `
+            --token $env:WINGET_TOKEN
+          if ($LASTEXITCODE -ne 0) { throw "wingetcreate failed with exit code $LASTEXITCODE" }

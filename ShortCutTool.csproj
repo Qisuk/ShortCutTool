@@ -10,16 +10,13 @@
     <!-- Application Metadata -->
     <AssemblyName>ShortCutTool</AssemblyName>
     <Product>ShortCut Tool</Product>
-    <Copyright>Copyright © 2026</Copyright>
+    <Copyright>Copyright © 2026 Chris Moir</Copyright>
     <!-- Single source of truth for the version. AssemblyVersion and FileVersion are derived
          from it, and the release workflow refuses to publish a tag that doesn't match. -->
     <Version>1.1.0</Version>
     <Description>Keyboard shortcut manager with Meh/Hyper key support for launching and cycling through application windows</Description>
-    <Authors>ChrisMoir</Authors>
+    <Authors>Chris Moir</Authors>
     <RepositoryUrl>https://github.com/Qisuk/ShortCutTool</RepositoryUrl>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/Qisuk/ShortCutTool</PackageProjectUrl>
-    <PackageReadmeFile>Documents\README.md</PackageReadmeFile>
 
     <!-- Application Icon -->
     <ApplicationIcon>Assets\Icons\app.ico</ApplicationIcon>
@@ -29,7 +26,6 @@
     <None Update="Assets\Icons\app.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\README.md" Pack="true" PackagePath="\" />
     <None Include=".github\workflows\*.yml" />
   </ItemGroup>
 

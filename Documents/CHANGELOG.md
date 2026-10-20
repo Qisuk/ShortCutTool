@@ -5,6 +5,12 @@ All notable changes to ShortCutTool will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- About dialog shows the copyright holder from the app's metadata.
+- Repository cleanup: removed the superseded WinGet guides, build/auto-start scripts and development reports; added `Documents/HOW-IT-WORKS.md`; documented the `workflow` token scope WinGet submissions need.
+
+## [1.1.0] - 2026-10-08
+
+### Changed
 - **Configuration moved to `%APPDATA%\ShortCutTool\shortcuts.json`** so it survives upgrades and no longer depends on the folder the app was started from. An existing `shortcuts.json` next to the executable is migrated automatically on first start.
 - **First run opens the Shortcut Manager** with an empty list instead of exiting with an error; an empty configuration is now valid.
 - Saving from the Shortcut Manager keeps environment variables such as `%USERNAME%` in paths instead of writing expanded paths.

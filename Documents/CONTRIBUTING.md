@@ -6,10 +6,10 @@ Thank you for your interest in contributing! Here's how you can help:
 
 When reporting bugs, please include:
 - Windows version
-- .NET version
+- ShortCutTool version (tray menu → About)
 - Steps to reproduce
 - Expected vs actual behavior
-- Any error messages or logs
+- The log file: tray menu → Open Log Folder (`%LOCALAPPDATA%\ShortCutTool\logs`)
 
 ## Feature Requests
 
@@ -30,11 +30,17 @@ Feel free to open an issue to suggest new features. Please describe:
 
 ## Development Setup
 
-1. Clone the repository
-2. Open in Visual Studio 2022 or later (or use VS Code with C# Dev Kit)
-3. Build: `dotnet build`
-4. Run: `dotnet run`
-5. Test your changes thoroughly
+1. Install the .NET 10 SDK (the exact version is pinned in `global.json`)
+2. Clone the repository and open `ShortCutTool.slnx` in Visual Studio 2022 17.14+ / 2026, or VS Code with C# Dev Kit
+3. Build and test:
+   ```powershell
+   dotnet build ShortCutTool.slnx
+   dotnet test --solution ShortCutTool.slnx
+   ```
+4. Run: `dotnet run --project ShortCutTool.csproj`. Exit any installed copy first; only one instance runs at a time.
+5. To build the installer: install Inno Setup (`winget install JRSoftware.InnoSetup`) and run `.\installer\Build-Installer.ps1`
+
+[HOW-IT-WORKS.md](HOW-IT-WORKS.md) explains the keyboard hook, window cycling and where files live. CI builds, tests and produces the installer for every pull request.
 
 ## Code Style
 
@@ -45,17 +51,17 @@ Feel free to open an issue to suggest new features. Please describe:
 
 ## Testing
 
+- Add or update unit tests in `tests/ShortCutTool.Tests` for logic that doesn't need a desktop (such as `ConfigValidator`)
 - Test with multiple windows of the same application
 - Test with applications that don't exist
 - Test the popup UI on different screen configurations
-- Test auto-start functionality
+- Test "Start with Windows", and install / upgrade / uninstall with the installer from the PR's CI run
 
 ## Areas for Contribution
 
 - Additional keyboard hook improvements
 - UI/UX enhancements for the popup
 - Better error handling
-- Configuration validation
 - Performance optimizations
 - Documentation improvements
 

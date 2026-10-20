@@ -49,14 +49,26 @@ if ($InstallerSha256) {
     $sha256 = $InstallerSha256.ToUpperInvariant()
     $releaseDate = (Get-Date).ToString('yyyy-MM-dd')
 } else {
+    # Windows PowerShell 5.1 can still default to TLS 1.0/1.1 on older systems
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+
+    # WinGet downloads anonymously, so check the release the way it will see it.
+    try {
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/Qisuk/ShortCutTool/releases/tags/v$Version" -UseBasicParsing
+    } catch {
+        throw "Release v$Version is not publicly visible at $repoUrl/releases/tag/v$Version. " +
+              "Check that the tag's Release workflow finished and that the repository is public; WinGet cannot download from private repositories. ($($_.Exception.Message))"
+    }
+    if (-not ($release.assets | Where-Object name -eq $installerName)) {
+        throw "Release v$Version has no asset named $installerName. Assets: $(($release.assets.name) -join ', ')"
+    }
+    $releaseDate = ([datetime]$release.published_at).ToString('yyyy-MM-dd')
+
     Write-Host "Downloading $installerUrl"
     $download = Join-Path ([IO.Path]::GetTempPath()) $installerName
     Invoke-WebRequest -Uri $installerUrl -OutFile $download -UseBasicParsing
     $sha256 = (Get-FileHash $download -Algorithm SHA256).Hash
     Remove-Item $download
-
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/Qisuk/ShortCutTool/releases/tags/v$Version" -UseBasicParsing
-    $releaseDate = ([datetime]$release.published_at).ToString('yyyy-MM-dd')
 }
 
 $manifests = @{

@@ -72,7 +72,7 @@ jobs:
 
   # Opens a PR on microsoft/winget-pkgs for each stable release. wingetcreate can only update a
   # package that already exists there, so this stays off until the first version is accepted.
-  # To enable: add a WINGET_TOKEN secret (classic PAT with public_repo scope) and set the
+  # To enable: add a WINGET_TOKEN secret (classic PAT with public_repo + workflow scopes) and set the
   # repository variable WINGET_AUTO_SUBMIT to true. See Documents/WINGET.md.
   winget:
     name: Submit to WinGet

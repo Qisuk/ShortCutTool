@@ -194,7 +194,11 @@ public class TrayApplicationContext : ApplicationContext
         aboutMessage.AppendLine("Meh = Ctrl+Alt+Shift");
         aboutMessage.AppendLine("Hyper = Ctrl+Alt+Shift+Win");
         aboutMessage.AppendLine();
-        aboutMessage.AppendLine("© 2026");
+        var copyright = System.Reflection.Assembly.GetExecutingAssembly()
+            .GetCustomAttributes(typeof(System.Reflection.AssemblyCopyrightAttribute), false)
+            .OfType<System.Reflection.AssemblyCopyrightAttribute>()
+            .FirstOrDefault()?.Copyright;
+        aboutMessage.AppendLine(copyright ?? "Copyright © 2026 Chris Moir");
         aboutMessage.AppendLine();
         aboutMessage.AppendLine("https://github.com/Qisuk/ShortCutTool");
 

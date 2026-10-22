@@ -23,11 +23,11 @@ These combinations are rarely used by other applications, making them perfect fo
 
 ### Installation
 
-#### Option 1: Winget (Coming Soon)
+#### Option 1: WinGet (pending review)
 ```powershell
 winget install Qisuk.ShortCutTool
 ```
-*Note: Pending approval in Windows Package Manager repository*
+*Version 1.1.0 has been [submitted to the Windows Package Manager repository](https://github.com/microsoft/winget-pkgs/pull/449390) and is waiting for moderator approval. Until it's merged, use the installer below. WinGet installs the .NET 10 Desktop Runtime automatically.*
 
 #### Option 2: Installer
 1. Download `ShortCutTool-<version>-win-x64-setup.exe` from the [latest release](https://github.com/Qisuk/ShortCutTool/releases/latest)

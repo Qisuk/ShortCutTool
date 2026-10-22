@@ -9,7 +9,15 @@ ShortCutTool is published to the [Windows Package Manager community repository](
 | Product code | `{681BDEBB-6E4C-451C-A509-91C4D9F71A02}_is1` (the installer's `AppGuid`; never change it) |
 | Publisher | `Qisuk` (must match `AppPublisher` in `installer\ShortCutTool.iss`) |
 
+## Token scopes
+
+wingetcreate syncs your winget-pkgs fork with upstream before every submission. Upstream regularly changes its own GitHub Actions workflows, and GitHub only lets a token push workflow changes into a fork if it has the **`workflow`** scope. So any token used with wingetcreate, locally or as `WINGET_TOKEN`, needs a classic PAT with **both `public_repo` and `workflow`**. Without `workflow`, submissions fail with *"The forked repository could not be synced with the upstream commits"*.
+
+If that happens, open your fork on GitHub and use **Sync fork → Update branch** (the website isn't subject to the token restriction), then submit again.
+
 ## First submission (one time)
+
+*Status: 1.1.0 submitted as [microsoft/winget-pkgs#449390](https://github.com/microsoft/winget-pkgs/pull/449390); validation passed, awaiting moderator review.*
 
 The automated workflow can only update a package that already exists in winget-pkgs, so the first version is submitted by hand.
 
@@ -31,7 +39,8 @@ The automated workflow can only update a package that already exists in winget-p
    ```
 5. **Submit.** `wingetcreate` forks winget-pkgs to your account and opens the pull request:
    ```powershell
-   wingetcreate token --store            # paste a classic PAT with the public_repo scope
+   winget upgrade Microsoft.WingetCreate
+   wingetcreate token --store            # paste a classic PAT with public_repo + workflow scopes
    wingetcreate submit .\artifacts\winget\manifests\q\Qisuk\ShortCutTool\1.1.0
    ```
 6. **Follow the PR** on microsoft/winget-pkgs. The validation pipeline installs the package in a clean VM and labels the PR; a moderator then reviews it. Answer any comments on the PR. New packages typically take a few days.
@@ -42,7 +51,7 @@ Once it is merged, `winget install Qisuk.ShortCutTool` works for everyone (allow
 
 After the first version is accepted, turn on the `winget` job in `.github/workflows/release.yml`:
 
-1. Create a classic personal access token with the **`public_repo`** scope on the account that owns your winget-pkgs fork.
+1. Create a classic personal access token with the **`public_repo`** and **`workflow`** scopes on the account that owns your winget-pkgs fork (see [Token scopes](#token-scopes)).
 2. In the ShortCutTool repository settings:
    - **Secrets → Actions:** add `WINGET_TOKEN` with that token.
    - **Variables → Actions:** add `WINGET_AUTO_SUBMIT` = `true`.
